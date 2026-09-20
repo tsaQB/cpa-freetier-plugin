@@ -113,33 +113,18 @@ type sessionEntry struct {
 	lastUsed  time.Time
 }
 
-var openCodeModels = map[string]bool{
-	"muse-spark-1.3-contributor-free": true,
-	"muse-spark-1.2-contributor-free": true,
-	"deepseek-v4-flash-free":          true,
-	"nemotron-3.5-lightning-free":     true,
-	"nemotron-3-ultra-free":           true,
-	"mimo-v2.5-free":                  true,
-	"ling-3.0-flash-fin-free":         true,
-	"jev-1.13-free":                   true,
-	"big-pickle":                      true,
-}
+var openCodeModels = map[string]bool{}
 
-var mimoModels = map[string]bool{
-	"mimo-auto": true,
-}
+var mimoModels = map[string]bool{}
 
 var kiloModels = map[string]bool{
 	"kilo-auto/free":                                    true,
 	"poolside/laguna-s-2.1:free":                         true,
 	"nex-agi/nex-n2.5-pro:free":                          true,
 	"nex-agi/nex-n2.5-mini:free":                         true,
-	"thinkingmachines/inkling-small:free":                true,
-	"tencent/hy3:free":                                  true,
 	"stepfun/step-3.7-flash:free":                       true,
 	"nvidia/nemotron-3-ultra-550b-a55b:free":            true,
 	"nvidia/nemotron-3-super-120b-a12b:free":            true,
-	"poolside/laguna-m.1:free":                          true,
 	"cohere/north-mini-code:free":                       true,
 	"poolside/laguna-xs-2.1:free":                       true,
 	"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": true,
@@ -278,31 +263,14 @@ func listModels() []map[string]any {
 	}
 
 	items := []modelDef{
-		// OpenCode Zen Free Models
-		{"muse-spark-1.3-contributor-free", "OpenCode Muse Spark 1.3 Free", 1048576, 131072, true},
-		{"muse-spark-1.2-contributor-free", "OpenCode Muse Spark 1.2 Free", 1048576, 131072, true},
-		{"deepseek-v4-flash-free", "OpenCode DeepSeek V4 Flash Free", 1000000, 384000, true},
-		{"nemotron-3.5-lightning-free", "OpenCode Nemotron 3.5 Lightning Free", 1000000, 65536, true},
-		{"nemotron-3-ultra-free", "OpenCode Nemotron 3 Ultra Free", 1000000, 65536, true},
-		{"mimo-v2.5-free", "OpenCode MiMo V2.5 Free", 1048576, 131072, false},
-		{"ling-3.0-flash-fin-free", "OpenCode Ling 3.0 Flash Free", 256000, 64000, false},
-		{"jev-1.13-free", "OpenCode Jev 1.13 Free", 256000, 32000, false},
-		{"big-pickle", "OpenCode Big Pickle Free", 200000, 32000, true},
-
-		// MiMo Free
-		{"mimo-auto", "Xiaomi MiMo Auto Free", 1048576, 131072, false},
-
 		// Kilo Free Models (Active & Verified)
 		{"kilo-auto/free", "Kilo Auto Free", 256000, 10000, false},
 		{"poolside/laguna-s-2.1:free", "Poolside Laguna S 2.1 Free", 262144, 32768, false},
 		{"nex-agi/nex-n2.5-pro:free", "Nex AGI N2.5 Pro Free", 256000, 32000, true},
 		{"nex-agi/nex-n2.5-mini:free", "Nex AGI N2.5 Mini Free", 256000, 32000, false},
-		{"thinkingmachines/inkling-small:free", "Thinking Machines Inkling Small Free", 131072, 16384, false},
-		{"tencent/hy3:free", "Tencent Hunyuan 3 Free (Kilo)", 262144, 262144, true},
 		{"stepfun/step-3.7-flash:free", "Step 3.7 Flash Free (Kilo)", 262144, 262144, false},
 		{"nvidia/nemotron-3-ultra-550b-a55b:free", "Nemotron 3 Ultra 550B Free (Kilo)", 1000000, 65536, true},
 		{"nvidia/nemotron-3-super-120b-a12b:free", "Nemotron 3 Super 120B Free (Kilo)", 1000000, 65536, true},
-		{"poolside/laguna-m.1:free", "Laguna M.1 Free (Kilo)", 262144, 32768, false},
 		{"cohere/north-mini-code:free", "North Mini Code Free (Kilo)", 256000, 64000, false},
 		{"poolside/laguna-xs-2.1:free", "Laguna XS 2.1 Free (Kilo)", 262144, 32768, false},
 		{"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "Nemotron 3 Nano Omni Free (Kilo)", 256000, 65536, true},
