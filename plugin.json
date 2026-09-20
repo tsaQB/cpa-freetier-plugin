@@ -1,0 +1,22 @@
+{
+  "name": "cpa-opencode-plugin",
+  "version": "1.0.0",
+  "description": "CLIProxyAPI native plugin for OpenCode Zen, MiMo, and Kilo free models without login.",
+  "license": "MIT",
+  "repository": "https://github.com/tsaQB/cpa-opencode-plugin",
+  "cli_proxy_api": {
+    "abi_version": 1,
+    "entrypoint": "cpa-opencode-plugin.so",
+    "build": "make build",
+    "capabilities": [
+      "model_provider",
+      "executor"
+    ],
+    "input_formats": [
+      "chat-completions"
+    ],
+    "output_formats": [
+      "chat-completions"
+    ]
+  }
+}

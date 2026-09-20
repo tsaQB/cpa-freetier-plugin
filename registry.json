@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "plugins": [
+    {
+      "id": "cpa-opencode-plugin",
+      "name": "CPA OpenCode Free Models",
+      "description": "CLIProxyAPI native plugin for OpenCode Zen, MiMo, and Kilo free models without login.",
+      "author": "tsaQB",
+      "version": "1.0.0",
+      "repository": "https://github.com/tsaQB/cpa-opencode-plugin",
+      "homepage": "https://github.com/tsaQB/cpa-opencode-plugin",
+      "license": "MIT",
+      "tags": [
+        "free",
+        "opencode",
+        "mimo",
+        "kilo"
+      ],
+      "install": {
+        "type": "direct",
+        "artifacts": [
+          {
+            "goos": "linux",
+            "goarch": "amd64",
+            "url": "https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_amd64.zip"
+          },
+          {
+            "goos": "linux",
+            "goarch": "arm64",
+            "url": "https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_arm64.zip"
+          }
+        ]
+      }
+    }
+  ]
+}

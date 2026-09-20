@@ -1,0 +1,78 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: false
+
+      - name: Install ARM64 cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu zip
+
+      - name: Build Linux AMD64 (.so)
+        run: |
+          mkdir -p build/amd64
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC=gcc \
+            go build -buildmode=c-shared -ldflags="-s -w" -o build/amd64/cpa-opencode-plugin.so main.go
+          cd build/amd64
+          zip ../../cpa-opencode-plugin_linux_amd64.zip cpa-opencode-plugin.so
+          cd ../..
+
+      - name: Build Linux ARM64 (.so)
+        run: |
+          mkdir -p build/arm64
+          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc \
+            go build -buildmode=c-shared -ldflags="-s -w" -o build/arm64/cpa-opencode-plugin.so main.go
+          cd build/arm64
+          zip ../../cpa-opencode-plugin_linux_arm64.zip cpa-opencode-plugin.so
+          cd ../..
+
+      - name: Generate Checksums
+        run: |
+          sha256sum cpa-opencode-plugin_linux_amd64.zip cpa-opencode-plugin_linux_arm64.zip > checksums.txt
+          cat checksums.txt
+
+      - name: Determine Tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          files: |
+            cpa-opencode-plugin_linux_amd64.zip
+            cpa-opencode-plugin_linux_arm64.zip
+            checksums.txt
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
