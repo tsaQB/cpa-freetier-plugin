@@ -131,6 +131,10 @@ var mimoModels = map[string]bool{
 
 var kiloModels = map[string]bool{
 	"kilo-auto/free":                                    true,
+	"poolside/laguna-s-2.1:free":                         true,
+	"nex-agi/nex-n2.5-pro:free":                          true,
+	"nex-agi/nex-n2.5-mini:free":                         true,
+	"thinkingmachines/inkling-small:free":                true,
 	"tencent/hy3:free":                                  true,
 	"stepfun/step-3.7-flash:free":                       true,
 	"nvidia/nemotron-3-ultra-550b-a55b:free":            true,
@@ -288,8 +292,12 @@ func listModels() []map[string]any {
 		// MiMo Free
 		{"mimo-auto", "Xiaomi MiMo Auto Free", 1048576, 131072, false},
 
-		// Kilo Free Models
+		// Kilo Free Models (Active & Verified)
 		{"kilo-auto/free", "Kilo Auto Free", 256000, 10000, false},
+		{"poolside/laguna-s-2.1:free", "Poolside Laguna S 2.1 Free", 262144, 32768, false},
+		{"nex-agi/nex-n2.5-pro:free", "Nex AGI N2.5 Pro Free", 256000, 32000, true},
+		{"nex-agi/nex-n2.5-mini:free", "Nex AGI N2.5 Mini Free", 256000, 32000, false},
+		{"thinkingmachines/inkling-small:free", "Thinking Machines Inkling Small Free", 131072, 16384, false},
 		{"tencent/hy3:free", "Tencent Hunyuan 3 Free (Kilo)", 262144, 262144, true},
 		{"stepfun/step-3.7-flash:free", "Step 3.7 Flash Free (Kilo)", 262144, 262144, false},
 		{"nvidia/nemotron-3-ultra-550b-a55b:free", "Nemotron 3 Ultra 550B Free (Kilo)", 1000000, 65536, true},
