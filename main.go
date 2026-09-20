@@ -785,11 +785,11 @@ func errorEnvelope(code, message string, httpStatus int) []byte {
 	return b
 }
 
-func responseHeaders(h http.Header) map[string]string {
-	out := make(map[string]string)
+func responseHeaders(h http.Header) map[string][]string {
+	out := make(map[string][]string)
 	for k, v := range h {
 		if len(v) > 0 {
-			out[k] = v[0]
+			out[k] = v
 		}
 	}
 	return out
