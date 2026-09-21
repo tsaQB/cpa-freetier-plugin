@@ -640,8 +640,9 @@ func injectMimoMarker(raw []byte) []byte {
 
 func callKilo(model string, payload []byte, stream bool) (*upstreamResponse, error) {
 	headers := http.Header{
-		"Content-Type":  []string{"application/json"},
-		"Authorization": []string{"Bearer kilo-free"},
+		"Content-Type":          []string{"application/json"},
+		"User-Agent":            []string{"opencode-kilo-provider"},
+		"X-KILOCODE-EDITORNAME": []string{"Kilo CLI"},
 	}
 	if stream {
 		headers.Set("Accept", "text/event-stream")
