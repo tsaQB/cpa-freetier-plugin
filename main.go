@@ -346,6 +346,7 @@ func listModels() []map[string]any {
 
 	items := []modelDef{
 		// Kilo Free Models (Active & Verified)
+		{"deepseek-ai/deepseek-v4.1-flash", "DeepSeek V4.1 Flash (Nvidia)", 1000000, 65536, true},
 		{"kilo-auto/free", "Kilo Auto Free", 256000, 10000, false},
 		{"poolside/laguna-s-2.1:free", "Poolside Laguna S 2.1 Free", 262144, 32768, false},
 		{"nex-agi/nex-n2.5-pro:free", "Nex AGI N2.5 Pro Free", 256000, 32000, true},
@@ -465,6 +466,9 @@ func decodeRequest(raw []byte) (executorRequest, error) {
 }
 
 func callUpstream(model string, payload []byte, stream bool) (*upstreamResponse, error) {
+	if strings.HasPrefix(model, "deepseek-ai/") {
+		return callNvidia(model, payload, stream)
+	}
 	if mimoModels[model] {
 		return callMimo(payload, stream)
 	} else if kiloModels[model] {
@@ -472,6 +476,43 @@ func callUpstream(model string, payload []byte, stream bool) (*upstreamResponse,
 	}
 	// Default to OpenCode Zen
 	return callOpenCode(model, payload, stream)
+}
+
+func callNvidia(model string, payload []byte, stream bool) (*upstreamResponse, error) {
+	var bodyMap map[string]any
+	if err := json.Unmarshal(payload, &bodyMap); err == nil {
+		for _, k := range []string{"reasoning", "reasoning_effort", "thinking", "thinking_config"} {
+			delete(bodyMap, k)
+		}
+		if newB, err := json.Marshal(bodyMap); err == nil {
+			payload = newB
+		}
+	}
+
+	headers := http.Header{
+		"Content-Type":  []string{"application/json"},
+		"Authorization": []string{"Bearer NVIDIA_API_KEY_REDACTED"},
+	}
+	if stream {
+		headers.Set("Accept", "text/event-stream")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "https://integrate.api.nvidia.com/v1/chat/completions", bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header = headers
+
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode >= 400 {
+		defer res.Body.Close()
+		b, _ := io.ReadAll(io.LimitReader(res.Body, 8192))
+		return nil, fmt.Errorf("%s: %s", res.Status, strings.TrimSpace(string(b)))
+	}
+	return &upstreamResponse{status: res.StatusCode, header: res.Header, body: res.Body}, nil
 }
 
 func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse, error) {
