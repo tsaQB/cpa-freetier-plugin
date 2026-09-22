@@ -332,24 +332,35 @@ func executeStream(raw []byte) ([]byte, error) {
 		}
 		defer resp.body.Close()
 
-		buffer := make([]byte, 32*1024)
-		for {
-			n, readErr := resp.body.Read(buffer)
-			if n > 0 {
-				if errEmit := emitStream(req.StreamID, append([]byte(nil), buffer[:n]...)); errEmit != nil {
-					closeStream(req.StreamID, errEmit.Error())
-					return
-				}
+		scanner := bufio.NewScanner(resp.body)
+		scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			line = strings.TrimSpace(line)
+			if line == "" || line == "data: [DONE]" || strings.HasPrefix(line, ":") {
+				continue
 			}
-			if readErr == io.EOF {
-				closeStream(req.StreamID, "")
-				return
+			// Pastikan format SSE bersih tanpa double "data: data: "
+			cleaned := line
+			if strings.HasPrefix(cleaned, "data:") {
+				cleaned = strings.TrimSpace(strings.TrimPrefix(cleaned, "data:"))
 			}
-			if readErr != nil {
-				closeStream(req.StreamID, readErr.Error())
+			if strings.HasPrefix(cleaned, "data:") {
+				cleaned = strings.TrimSpace(strings.TrimPrefix(cleaned, "data:"))
+			}
+			if cleaned == "" || cleaned == "[DONE]" {
+				continue
+			}
+			if errEmit := emitStream(req.StreamID, []byte(cleaned)); errEmit != nil {
+				closeStream(req.StreamID, errEmit.Error())
 				return
 			}
 		}
+		if scanErr := scanner.Err(); scanErr != nil {
+			closeStream(req.StreamID, scanErr.Error())
+			return
+		}
+		closeStream(req.StreamID, "")
 	}()
 
 	return ok(map[string]any{
