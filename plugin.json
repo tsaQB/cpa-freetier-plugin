@@ -10,7 +10,8 @@
     "build": "make build",
     "capabilities": [
       "model_provider",
-      "executor"
+      "executor",
+      "request_normalizer"
     ],
     "input_formats": [
       "chat-completions"

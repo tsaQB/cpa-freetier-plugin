@@ -260,15 +260,15 @@ func handleMethod(method string, raw []byte) ([]byte, error) {
 }
 
 type requestTransformRequest struct {
-	FromFormat string `json:"FromFormat"`
-	ToFormat   string `json:"ToFormat"`
-	Model      string `json:"Model"`
-	Stream     bool   `json:"Stream"`
-	Body       []byte `json:"Body"`
+	FromFormat string          `json:"FromFormat"`
+	ToFormat   string          `json:"ToFormat"`
+	Model      string          `json:"Model"`
+	Stream     bool            `json:"Stream"`
+	Body       json.RawMessage `json:"Body"`
 }
 
 type payloadResponse struct {
-	Body []byte `json:"Body"`
+	Body json.RawMessage `json:"Body"`
 }
 
 func normalizeRequest(payload []byte) ([]byte, error) {
@@ -311,7 +311,7 @@ func normalizeRequest(payload []byte) ([]byte, error) {
 	if changed {
 		newBody, err := json.Marshal(bodyMap)
 		if err == nil {
-			return ok(payloadResponse{Body: newBody})
+			return ok(payloadResponse{Body: json.RawMessage(newBody)})
 		}
 	}
 
