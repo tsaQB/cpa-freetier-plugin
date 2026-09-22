@@ -58,6 +58,7 @@ static void free_host_buffer(void* ptr, size_t len) {
 import "C"
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
