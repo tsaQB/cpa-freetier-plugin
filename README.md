@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Build-GitHub%20Actions%20CI-blue?style=for-the-badge&logo=githubactions" alt="CI Status" />
 </p>
 
-A high-performance, native dynamic C ABI plugin (`.so`) for **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)** (v7+). Seamlessly exposes curated free and high-performance AI models from multiple upstream providers—including **Kilo AI Gateway**, **NVIDIA NIM**, and **OpenCode Zen**—without requiring individual client accounts, subscriptions, or complex auth setups.
+A high-performance, native dynamic C ABI plugin (`.so`) for **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)** (v7+). Seamlessly exposes curated 100% free AI models from multiple upstream providers—including **Kilo AI Gateway** and **OpenCode Zen**—without requiring individual client accounts, subscriptions, API keys, or complex auth setups.
 
 ---
 
@@ -18,10 +18,9 @@ A high-performance, native dynamic C ABI plugin (`.so`) for **[CLIProxyAPI](http
 - **Double SSE De-Framing:** Intelligently normalizes nested Server-Sent Events streams (fixing `data: data: {...}` formatting issues) before forwarding to the host proxy.
 - **Native ABI v1 Streaming:** Implements official `host.stream.emit` and `host.stream.close` methods for zero-buffer real-time token streaming.
 
-### ⚡ Smart Multi-Upstream Execution
-- **Kilo AI Public Gateway:** Anonymous rate-safe routing to verified free models with automatic upstream request headers.
-- **Direct NVIDIA NIM Integration:** Embedded handling for high-speed flagship models (e.g. `deepseek-ai/deepseek-v4.1-flash`) with internal reasoning cleanup.
-- **Anti-403 Fingerprinting for OpenCode:** Dynamic canonical session generation (`ses_<hex12><base62_14>`), desktop user-agent cloaking, and tool quartet simulation.
+### ⚡ Smart Free-Tier Upstream Execution
+- **Kilo AI Public Gateway:** Anonymous rate-safe routing to verified free models with automatic upstream request headers. Zero API key required.
+- **Anti-403 Fingerprinting for OpenCode:** Dynamic canonical session generation (`ses_<hex12><base62_14>`), desktop user-agent cloaking, and tool quartet simulation. Zero API key required.
 
 ### 🏗️ Enterprise-Grade CGO Build
 - Distributed as zero-dependency native shared objects (`.so`) cross-compiled using GitHub Actions runners for both `linux/amd64` and `linux/arm64` (aarch64).
@@ -30,13 +29,12 @@ A high-performance, native dynamic C ABI plugin (`.so`) for **[CLIProxyAPI](http
 
 ## 📋 Verified & Active Models Catalog
 
-All models below are actively verified and ready for production use via `/v1/chat/completions`:
+All models below are actively verified, 100% free-tier, and ready for production use via `/v1/chat/completions`:
 
 | Model Identifier | Upstream Provider | Characteristics & Use Cases |
 | :--- | :--- | :--- |
-| `nvidia/nemotron-3-ultra-550b-a55b:free` | **NVIDIA** | **550B Reasoning Flagship.** Heavyweight reasoning model with deep thought traces, ideal for complex architecture and coding. |
-| `nvidia/nemotron-3-super-120b-a12b:free` | **NVIDIA** | **120B High-Context.** Ultra-reliable model with up to 1M context window for long documents and codebases. |
-| `deepseek-ai/deepseek-v4.1-flash` | **NVIDIA NIM** | **DeepSeek V4.1 Flash.** Cutting-edge speed and reasoning accuracy with automated sanitization. |
+| `nvidia/nemotron-3-ultra-550b-a55b:free` | **NVIDIA (via Kilo)** | **550B Reasoning Flagship.** Heavyweight reasoning model with deep thought traces, ideal for complex architecture and coding. |
+| `nvidia/nemotron-3-super-120b-a12b:free` | **NVIDIA (via Kilo)** | **120B High-Context.** Ultra-reliable model with up to 1M context window for long documents and codebases. |
 | `poolside/laguna-s-2.1:free` | **Poolside AI** | **Code Specialist.** Highly accurate software engineering model built by Poolside. |
 | `nex-agi/nex-n2.5-pro:free` | **Nex AGI** | **Agentic Pro.** Multi-turn tool use, function execution, and agentic reasoning workflows. |
 | `nex-agi/nex-n2.5-mini:free` | **Nex AGI** | **Low Latency.** Sub-second response times for chat and fast lookups. |
@@ -122,7 +120,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="deepseek-ai/deepseek-v4.1-flash",
+    model="kilo-auto/free",
     messages=[
         {"role": "system", "content": "You are a concise engineering assistant."},
         {"role": "user", "content": "Write an efficient LRU Cache in Go."}
@@ -155,16 +153,16 @@ print()
 │ cpa-opencode-plugin.so                                                            │
 │                                                                                   │
 │  ├── [Payload Sanitizer]       Strips conflicting reasoning_effort & thinking     │
-│  ├── [Dynamic Model Catalog]   Advertises 100% active verified model identifiers  │
+│  ├── [Dynamic Model Catalog]   Advertises 100% active free model identifiers      │
 │  ├── [SSE Stream Re-Framer]    Cleans double 'data:' prefixes & emits via host    │
-│  └── [Multi-Route Dispatcher]  Directs traffic to Kilo, NVIDIA NIM, or OpenCode   │
-└──────────────┬────────────────────────────┬───────────────────────────┬───────────┘
-               │                            │                           │
-               ▼                            ▼                           ▼
-   ┌───────────────────────┐   ┌─────────────────────────┐   ┌──────────────────────┐
-   │   Kilo AI Gateway     │   │     NVIDIA NIM API      │   │    OpenCode Zen      │
-   │  (Anonymous Free Tier)│   │  (Optimized Fast Path)  │   │  (Anti-403 Cloaked)  │
-   └───────────────────────┘   └─────────────────────────┘   └──────────────────────┘
+│  └── [Free-Tier Dispatcher]    Directs traffic to Kilo AI or OpenCode Zen         │
+└──────────────────────────┬─────────────────────────────────────┬──────────────────┘
+                           │                                     │
+                           ▼                                     ▼
+               ┌───────────────────────┐             ┌──────────────────────┐
+               │   Kilo AI Gateway     │             │    OpenCode Zen      │
+               │  (Anonymous Free Tier)│             │  (Anti-403 Cloaked)  │
+               └───────────────────────┘             └──────────────────────┘
 ```
 
 ---
