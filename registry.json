@@ -2,13 +2,13 @@
   "schema_version": 2,
   "plugins": [
     {
-      "id": "cpa-opencode-plugin",
-      "name": "CPA OpenCode Free Models",
+      "id": "cpa-freetier-plugin",
+      "name": "CPA Free-Tier Models Plugin",
       "description": "CLIProxyAPI native plugin for OpenCode Zen, MiMo, and Kilo free models without login.",
       "author": "tsaQB",
       "version": "1.0.0",
-      "repository": "https://github.com/tsaQB/cpa-opencode-plugin",
-      "homepage": "https://github.com/tsaQB/cpa-opencode-plugin",
+      "repository": "https://github.com/tsaQB/cpa-freetier-plugin",
+      "homepage": "https://github.com/tsaQB/cpa-freetier-plugin",
       "license": "MIT",
       "tags": [
         "free",
@@ -22,12 +22,12 @@
           {
             "goos": "linux",
             "goarch": "amd64",
-            "url": "https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_amd64.zip"
+            "url": "https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.0.0/cpa-freetier-plugin_linux_amd64.zip"
           },
           {
             "goos": "linux",
             "goarch": "arm64",
-            "url": "https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_arm64.zip"
+            "url": "https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.0.0/cpa-freetier-plugin_linux_arm64.zip"
           }
         ]
       }

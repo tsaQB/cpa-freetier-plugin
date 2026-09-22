@@ -1,12 +1,12 @@
 {
-  "name": "cpa-opencode-plugin",
+  "name": "cpa-freetier-plugin",
   "version": "1.0.0",
   "description": "CLIProxyAPI native plugin for OpenCode Zen, MiMo, and Kilo free models without login.",
   "license": "MIT",
-  "repository": "https://github.com/tsaQB/cpa-opencode-plugin",
+  "repository": "https://github.com/tsaQB/cpa-freetier-plugin",
   "cli_proxy_api": {
     "abi_version": 1,
-    "entrypoint": "cpa-opencode-plugin.so",
+    "entrypoint": "cpa-freetier-plugin.so",
     "build": "make build",
     "capabilities": [
       "model_provider",

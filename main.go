@@ -73,7 +73,7 @@ import (
 
 const (
 	abiVersion = 1
-	pluginID   = "cpa-opencode-plugin"
+	pluginID   = "cpa-freetier-plugin"
 
 	// OpenCode Zen Endpoints
 	opencodeChatURL      = "https://opencode.ai/zen/v1/chat/completions"
@@ -223,7 +223,7 @@ func handleMethod(method string, raw []byte) ([]byte, error) {
 				"Name":             pluginID,
 				"Version":          "1.0.0",
 				"Author":           "tsaQB",
-				"GitHubRepository": "https://github.com/tsaQB/cpa-opencode-plugin",
+				"GitHubRepository": "https://github.com/tsaQB/cpa-freetier-plugin",
 				"ConfigFields":     []any{},
 			},
 			"capabilities": map[string]any{
@@ -684,7 +684,7 @@ func getMimoToken() (string, error) {
 		return mimoToken, nil
 	}
 
-	req, _ := http.NewRequest(http.MethodPost, mimoBootstrapURL, strings.NewReader(`{"client":"cpa-opencode-plugin"}`))
+	req, _ := http.NewRequest(http.MethodPost, mimoBootstrapURL, strings.NewReader(`{"client":"cpa-freetier-plugin"}`))
 	req.Header.Set("Content-Type", "application/json")
 	res, err := httpClient.Do(req)
 	if err != nil {

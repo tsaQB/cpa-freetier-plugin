@@ -36,23 +36,23 @@ jobs:
         run: |
           mkdir -p build/amd64
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC=gcc \
-            go build -buildmode=c-shared -ldflags="-s -w" -o build/amd64/cpa-opencode-plugin.so main.go
+            go build -buildmode=c-shared -ldflags="-s -w" -o build/amd64/cpa-freetier-plugin.so main.go
           cd build/amd64
-          zip ../../cpa-opencode-plugin_linux_amd64.zip cpa-opencode-plugin.so
+          zip ../../cpa-freetier-plugin_linux_amd64.zip cpa-freetier-plugin.so
           cd ../..
 
       - name: Build Linux ARM64 (.so)
         run: |
           mkdir -p build/arm64
           CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc \
-            go build -buildmode=c-shared -ldflags="-s -w" -o build/arm64/cpa-opencode-plugin.so main.go
+            go build -buildmode=c-shared -ldflags="-s -w" -o build/arm64/cpa-freetier-plugin.so main.go
           cd build/arm64
-          zip ../../cpa-opencode-plugin_linux_arm64.zip cpa-opencode-plugin.so
+          zip ../../cpa-freetier-plugin_linux_arm64.zip cpa-freetier-plugin.so
           cd ../..
 
       - name: Generate Checksums
         run: |
-          sha256sum cpa-opencode-plugin_linux_amd64.zip cpa-opencode-plugin_linux_arm64.zip > checksums.txt
+          sha256sum cpa-freetier-plugin_linux_amd64.zip cpa-freetier-plugin_linux_arm64.zip > checksums.txt
           cat checksums.txt
 
       - name: Determine Tag
@@ -70,8 +70,8 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
           files: |
-            cpa-opencode-plugin_linux_amd64.zip
-            cpa-opencode-plugin_linux_arm64.zip
+            cpa-freetier-plugin_linux_amd64.zip
+            cpa-freetier-plugin_linux_arm64.zip
             checksums.txt
           generate_release_notes: true
         env:

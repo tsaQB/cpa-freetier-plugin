@@ -49,12 +49,12 @@ All models below are actively verified, 100% free-tier, and ready for production
 
 ### 1. Download Binary Release
 
-Download the pre-compiled `.so` library matching your server architecture from [Releases](https://github.com/tsaQB/cpa-opencode-plugin/releases/latest):
+Download the pre-compiled `.so` library matching your server architecture from [Releases](https://github.com/tsaQB/cpa-freetier-plugin/releases/latest):
 
 #### For Linux ARM64 (aarch64 - SBC, Termux, Cloud ARM):
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
-curl -sL https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_arm64.zip -o /tmp/plugin.zip
+curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.0.0/cpa-freetier-plugin_linux_arm64.zip -o /tmp/plugin.zip
 unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
@@ -62,7 +62,7 @@ rm /tmp/plugin.zip
 #### For Linux AMD64 (x86_64 - VPS, Server, Desktop):
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
-curl -sL https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_amd64.zip -o /tmp/plugin.zip
+curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.0.0/cpa-freetier-plugin_linux_amd64.zip -o /tmp/plugin.zip
 unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
@@ -76,7 +76,7 @@ plugins:
   enabled: true
   dir: "/root/.cli-proxy-api/plugins"
   configs:
-    cpa-opencode-plugin:
+    cpa-freetier-plugin:
       enabled: true
 ```
 
@@ -150,7 +150,7 @@ print()
                                             │ Native C ABI v1 Calls
                                             ▼
 ┌───────────────────────────────────────────────────────────────────────────────────┐
-│ cpa-opencode-plugin.so                                                            │
+│ cpa-freetier-plugin.so                                                            │
 │                                                                                   │
 │  ├── [Payload Sanitizer]       Strips conflicting reasoning_effort & thinking     │
 │  ├── [Dynamic Model Catalog]   Advertises 100% active free model identifiers      │
@@ -172,8 +172,8 @@ print()
 Local compilation requires Go 1.22+ with `CGO_ENABLED=1` and GCC/musl tooling:
 
 ```bash
-git clone https://github.com/tsaQB/cpa-opencode-plugin.git
-cd cpa-opencode-plugin
+git clone https://github.com/tsaQB/cpa-freetier-plugin.git
+cd cpa-freetier-plugin
 
 # Compile for local architecture:
 make build
