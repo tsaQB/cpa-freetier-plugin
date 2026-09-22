@@ -1,57 +1,59 @@
-# CPA OpenCode Plugin
+# CPA OpenCode & Free Models Plugin
 
-Native **CLIProxyAPI (ABI v1)** plugin untuk menyediakan model AI gratis tanpa login akun dari **OpenCode Zen**, **Xiaomi MiMo**, dan **Kilo AI**.
+<p align="center">
+  <img src="https://img.shields.io/badge/CLIProxyAPI-ABI%20v1%20Compliant-00ADD8?style=for-the-badge&logo=go" alt="CPA ABI v1" />
+  <img src="https://img.shields.io/badge/Architecture-AMD64%20%7C%20ARM64-4A154B?style=for-the-badge" alt="Arch AMD64 / ARM64" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License MIT" />
+  <img src="https://img.shields.io/badge/Build-GitHub%20Actions%20CI-blue?style=for-the-badge&logo=githubactions" alt="CI Status" />
+</p>
 
----
-
-## 🌟 Fitur Utama
-
-- **Zero-Login & Anti-403 Fingerprinting:**
-  - Injeksi otomatis `Authorization: Bearer public`.
-  - Emulasi resmi `User-Agent: opencode/1.18.31` dan `x-opencode-client: desktop`.
-  - Generator sesi persisten canonical format `ses_<hex12><base62_14>` dan request header `msg_<hex12><base62_14>`.
-  - Injeksi otomatis decoy tools quartet `{bash, glob, grep, read}` untuk bypass validasi upstream OpenCode.
-  - Penegakan *forced streaming* (`stream: true`) untuk mencegah `403 FreeTierError`.
-  - Routing khusus model `muse-spark-*` ke endpoint `/zen/v1/responses`.
-- **Multi-Provider Bundled:**
-  - **OpenCode Zen:** Muse Spark 1.3/1.2, DeepSeek V4 Flash, Nemotron 3.5, MiMo 2.5, Ling 3.0, Big Pickle.
-  - **MiMo Free:** Auto bootstrap token JWT ke endpoint MiMo Code.
-  - **Kilo AI:** Auto fallback free models (Poolside Laguna, Hunyuan 3, Step 3.7 Flash, Nemotron Ultra, dll.).
-- **Dukungan Multi-Arsitektur:**
-  - `linux/amd64` (x86_64)
-  - `linux/arm64` (aarch64)
+A high-performance, native dynamic C ABI plugin (`.so`) for **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)** (v7+). Seamlessly exposes curated free and high-performance AI models from multiple upstream providers—including **Kilo AI Gateway**, **NVIDIA NIM**, and **OpenCode Zen**—without requiring individual client accounts, subscriptions, or complex auth setups.
 
 ---
 
-## 📋 Daftar Model yang Didukung
+## 🌟 Key Features
 
-| Provider | Model ID | Tipe / Endpoint Upstream |
+### 🛡️ Universal Client Compatibility & Payload Normalization
+- **Strict Parameter Sanitization:** Automatically strips conflicting or upstream-rejected parameters (e.g. `reasoning_effort`, `reasoning.effort`, nested `thinking` blocks) emitted by agent runtimes like **Hermes Agent**, **Claude Code**, or **Cursor**.
+- **Double SSE De-Framing:** Intelligently normalizes nested Server-Sent Events streams (fixing `data: data: {...}` formatting issues) before forwarding to the host proxy.
+- **Native ABI v1 Streaming:** Implements official `host.stream.emit` and `host.stream.close` methods for zero-buffer real-time token streaming.
+
+### ⚡ Smart Multi-Upstream Execution
+- **Kilo AI Public Gateway:** Anonymous rate-safe routing to verified free models with automatic upstream request headers.
+- **Direct NVIDIA NIM Integration:** Embedded handling for high-speed flagship models (e.g. `deepseek-ai/deepseek-v4.1-flash`) with internal reasoning cleanup.
+- **Anti-403 Fingerprinting for OpenCode:** Dynamic canonical session generation (`ses_<hex12><base62_14>`), desktop user-agent cloaking, and tool quartet simulation.
+
+### 🏗️ Enterprise-Grade CGO Build
+- Distributed as zero-dependency native shared objects (`.so`) cross-compiled using GitHub Actions runners for both `linux/amd64` and `linux/arm64` (aarch64).
+
+---
+
+## 📋 Verified & Active Models Catalog
+
+All models below are actively verified and ready for production use via `/v1/chat/completions`:
+
+| Model Identifier | Upstream Provider | Characteristics & Use Cases |
 | :--- | :--- | :--- |
-| **OpenCode Zen** | `muse-spark-1.3-contributor-free` | OpenAI Responses API (`/zen/v1/responses`) |
-| **OpenCode Zen** | `muse-spark-1.2-contributor-free` | OpenAI Responses API (`/zen/v1/responses`) |
-| **OpenCode Zen** | `deepseek-v4-flash-free` | Chat Completions (`/zen/v1/chat/completions`) |
-| **OpenCode Zen** | `nemotron-3.5-lightning-free` | Chat Completions |
-| **OpenCode Zen** | `nemotron-3-ultra-free` | Chat Completions |
-| **OpenCode Zen** | `mimo-v2.5-free` | Chat Completions |
-| **OpenCode Zen** | `ling-3.0-flash-fin-free` | Chat Completions |
-| **OpenCode Zen** | `jev-1.13-free` | Chat Completions |
-| **OpenCode Zen** | `big-pickle` | Chat Completions |
-| **MiMo** | `mimo-auto` | MiMo Code Bootstrap + Chat |
-| **Kilo AI** | `kilo-auto/free` | Kilo AI Gateway |
-| **Kilo AI** | `tencent/hy3:free` | Kilo AI Gateway |
-| **Kilo AI** | `stepfun/step-3.7-flash:free` | Kilo AI Gateway |
-| **Kilo AI** | `nvidia/nemotron-3-ultra-550b-a55b:free` | Kilo AI Gateway |
-| **Kilo AI** | `poolside/laguna-m.1:free` | Kilo AI Gateway |
+| `nvidia/nemotron-3-ultra-550b-a55b:free` | **NVIDIA** | **550B Reasoning Flagship.** Heavyweight reasoning model with deep thought traces, ideal for complex architecture and coding. |
+| `nvidia/nemotron-3-super-120b-a12b:free` | **NVIDIA** | **120B High-Context.** Ultra-reliable model with up to 1M context window for long documents and codebases. |
+| `deepseek-ai/deepseek-v4.1-flash` | **NVIDIA NIM** | **DeepSeek V4.1 Flash.** Cutting-edge speed and reasoning accuracy with automated sanitization. |
+| `poolside/laguna-s-2.1:free` | **Poolside AI** | **Code Specialist.** Highly accurate software engineering model built by Poolside. |
+| `nex-agi/nex-n2.5-pro:free` | **Nex AGI** | **Agentic Pro.** Multi-turn tool use, function execution, and agentic reasoning workflows. |
+| `nex-agi/nex-n2.5-mini:free` | **Nex AGI** | **Low Latency.** Sub-second response times for chat and fast lookups. |
+| `stepfun/step-3.7-flash:free` | **StepFun** | **Step 3.7 Flash.** Native thinking trace model with superior natural language understanding. |
+| `cohere/north-mini-code:free` | **Cohere** | **Compact Code.** Fast syntax analysis and code refactoring. |
+| `kilo-auto/free` | **Kilo Router** | **Dynamic Load Balancer.** Automatically selects the best healthy free model pool. |
+| `openrouter/free` | **OpenRouter** | **Public Pool Fallback.** Routes dynamically across available free community nodes. |
 
 ---
 
-## 🚀 Cara Pemasangan di CLIProxyAPI
+## 🚀 Installation & Setup
 
-### 1. Unduh Binary Plugin
+### 1. Download Binary Release
 
-Unduh binary `.so` sesuai arsitektur mesin dari [Halaman Rilis](https://github.com/tsaQB/cpa-opencode-plugin/releases):
+Download the pre-compiled `.so` library matching your server architecture from [Releases](https://github.com/tsaQB/cpa-opencode-plugin/releases/latest):
 
-**Untuk Linux ARM64 (aarch64):**
+#### For Linux ARM64 (aarch64 - SBC, Termux, Cloud ARM):
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
 curl -sL https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_arm64.zip -o /tmp/plugin.zip
@@ -59,7 +61,7 @@ unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
 
-**Untuk Linux AMD64 (x86_64):**
+#### For Linux AMD64 (x86_64 - VPS, Server, Desktop):
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
 curl -sL https://github.com/tsaQB/cpa-opencode-plugin/releases/download/v1.0.0/cpa-opencode-plugin_linux_amd64.zip -o /tmp/plugin.zip
@@ -67,9 +69,9 @@ unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
 
-### 2. Konfigurasi `config.yaml` CLIProxyAPI
+### 2. Configure CLIProxyAPI
 
-Tambahkan blok plugin pada file `/root/config.yaml`:
+Edit your CLIProxyAPI configuration file (e.g. `/root/config.yaml` or `~/.cli-proxy-api/config.yaml`) to enable plugin discovery:
 
 ```yaml
 plugins:
@@ -80,35 +82,114 @@ plugins:
       enabled: true
 ```
 
-### 3. Restart CLIProxyAPI
+### 3. Restart Service
+
+Restart your CLIProxyAPI systemd service or reload the binary process:
 
 ```bash
 systemctl restart cliproxyapi
-# atau jika dijalankan manual:
-# kill -HUP <pid_cliproxyapi>
+# Or via CLIProxyAPI Management / CLI:
+# cliproxyapi restart
 ```
 
 ---
 
-## 🧪 Pengujian Model
+## 🧪 Verification & Usage Examples
 
-Gunakan endpoint OpenAI-compatible CLIProxyAPI (port default: `8317`):
+Once installed, point any OpenAI-compatible client (Hermes Agent, Xiao, Cursor, Claude Code, Python SDK, or cURL) to your local proxy port (default `8317`):
 
+### cURL (Streaming Chat Request)
 ```bash
-curl http://127.0.0.1:8317/v1/chat/completions \
-  -H "Authorization: Bearer <API_KEY_CPA>" \
+curl -N http://127.0.0.1:8317/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_CPA_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "deepseek-v4-flash-free",
-    "messages": [{"role": "user", "content": "Halo! Siapa namamu?"}]
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "messages": [
+      {"role": "user", "content": "Explain how epoll works in the Linux kernel in 3 bullet points."}
+    ],
+    "stream": true
   }'
 ```
 
+### Python (OpenAI SDK with Hermes Agent Rigor)
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://127.0.0.1:8317/v1",
+    api_key="YOUR_CPA_KEY"
+)
+
+response = client.chat.completions.create(
+    model="deepseek-ai/deepseek-v4.1-flash",
+    messages=[
+        {"role": "system", "content": "You are a concise engineering assistant."},
+        {"role": "user", "content": "Write an efficient LRU Cache in Go."}
+    ],
+    stream=True
+)
+
+for chunk in response:
+    content = chunk.choices[0].delta.content or ""
+    print(content, end="", flush=True)
+print()
+```
+
 ---
 
-## 🛠️ Build dari Source (CI / GitHub Actions)
+## 🛠️ Architecture & Protocol Specifications
 
-Karena plugin menggunakan CGO C ABI v1, kompilasi direkomendasikan melalui GitHub Actions:
+```
+                     ┌──────────────────────────────────────────────┐
+                     │ Client Request (Hermes / Cursor / cURL)      │
+                     └──────────────────────┬───────────────────────┘
+                                            │ OpenAI-compatible REST / SSE
+                                            ▼
+                     ┌──────────────────────────────────────────────┐
+                     │ CLIProxyAPI Host Process (Port 8317)         │
+                     └──────────────────────┬───────────────────────┘
+                                            │ Native C ABI v1 Calls
+                                            ▼
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│ cpa-opencode-plugin.so                                                            │
+│                                                                                   │
+│  ├── [Payload Sanitizer]       Strips conflicting reasoning_effort & thinking     │
+│  ├── [Dynamic Model Catalog]   Advertises 100% active verified model identifiers  │
+│  ├── [SSE Stream Re-Framer]    Cleans double 'data:' prefixes & emits via host    │
+│  └── [Multi-Route Dispatcher]  Directs traffic to Kilo, NVIDIA NIM, or OpenCode   │
+└──────────────┬────────────────────────────┬───────────────────────────┬───────────┘
+               │                            │                           │
+               ▼                            ▼                           ▼
+   ┌───────────────────────┐   ┌─────────────────────────┐   ┌──────────────────────┐
+   │   Kilo AI Gateway     │   │     NVIDIA NIM API      │   │    OpenCode Zen      │
+   │  (Anonymous Free Tier)│   │  (Optimized Fast Path)  │   │  (Anti-403 Cloaked)  │
+   └───────────────────────┘   └─────────────────────────┘   └──────────────────────┘
+```
 
-- Buat Git Tag: `git tag v1.0.0 && git push origin v1.0.0`
-- GitHub Actions akan otomatis melakukan cross-compile untuk `linux/amd64` dan `linux/arm64`, lalu membuat GitHub Release lengkap dengan file ZIP dan checksums.
+---
+
+## 🤝 Contributing & Local Compilation
+
+Local compilation requires Go 1.22+ with `CGO_ENABLED=1` and GCC/musl tooling:
+
+```bash
+git clone https://github.com/tsaQB/cpa-opencode-plugin.git
+cd cpa-opencode-plugin
+
+# Compile for local architecture:
+make build
+
+# Or cross-compile via Makefile targets:
+make build-amd64
+make build-arm64
+```
+
+*Note: For low-resource devices (e.g. ARM TV boxes / SBCs), always offload compilation to GitHub Actions CI workflows (`.github/workflows/build-and-release.yml`).*
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
