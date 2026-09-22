@@ -489,9 +489,18 @@ func callNvidia(model string, payload []byte, stream bool) (*upstreamResponse, e
 		}
 	}
 
+	apiKey := os.Getenv("NVIDIA_API_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("NVAPI_KEY")
+	}
+	// Fallback to checking config or request header
+	if apiKey == "" {
+		return nil, fmt.Errorf("NVIDIA_API_KEY environment variable is not configured on the host")
+	}
+
 	headers := http.Header{
 		"Content-Type":  []string{"application/json"},
-		"Authorization": []string{"Bearer NVIDIA_API_KEY_REDACTED"},
+		"Authorization": []string{"Bearer " + apiKey},
 	}
 	if stream {
 		headers.Set("Accept", "text/event-stream")
