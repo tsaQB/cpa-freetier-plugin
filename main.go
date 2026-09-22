@@ -713,7 +713,7 @@ func emitStream(streamID string, payload []byte) error {
 		return err
 	}
 	var buf C.cliproxy_buffer
-	cMethod := C.CString("executor.stream_emit")
+	cMethod := C.CString("host.stream.emit")
 	defer C.free(unsafe.Pointer(cMethod))
 	cReq := (*C.uint8_t)(unsafe.Pointer(&b[0]))
 	rc := C.call_host_api(cMethod, cReq, C.size_t(len(b)), &buf)
@@ -730,7 +730,7 @@ func closeStream(streamID, errStr string) {
 	req := streamClose{StreamID: streamID, Error: errStr}
 	b, _ := json.Marshal(req)
 	var buf C.cliproxy_buffer
-	cMethod := C.CString("executor.stream_close")
+	cMethod := C.CString("host.stream.close")
 	defer C.free(unsafe.Pointer(cMethod))
 	var cReq *C.uint8_t
 	if len(b) > 0 {
