@@ -232,8 +232,11 @@ func handleMethod(method string, raw []byte) ([]byte, error) {
 				"executor_model_scope":   "static",
 				"executor_input_formats":  []string{"chat-completions"},
 				"executor_output_formats": []string{"chat-completions"},
+				"request_normalizer":     true,
 			},
 		})
+	case "request.normalize":
+		return normalizeRequest(raw)
 	case "model.static", "model.for_auth":
 		return ok(map[string]any{
 			"Provider": pluginID,
@@ -254,6 +257,84 @@ func handleMethod(method string, raw []byte) ([]byte, error) {
 	default:
 		return errorEnvelope("unknown_method", "unknown method: "+method, 0), nil
 	}
+}
+
+type requestTransformRequest struct {
+	FromFormat string `json:"FromFormat"`
+	ToFormat   string `json:"ToFormat"`
+	Model      string `json:"Model"`
+	Stream     bool   `json:"Stream"`
+	Body       []byte `json:"Body"`
+}
+
+type payloadResponse struct {
+	Body []byte `json:"Body"`
+}
+
+func normalizeRequest(payload []byte) ([]byte, error) {
+	var req requestTransformRequest
+	if len(payload) > 0 {
+		if errDecode := json.Unmarshal(payload, &req); errDecode != nil {
+			return nil, errDecode
+		}
+	}
+	if len(req.Body) == 0 {
+		return ok(payloadResponse{Body: req.Body})
+	}
+
+	var bodyMap map[string]any
+	if err := json.Unmarshal(req.Body, &bodyMap); err != nil {
+		return ok(payloadResponse{Body: req.Body})
+	}
+
+	modelLower := strings.ToLower(strings.TrimSpace(req.Model))
+	changed := false
+
+	// Untuk model Nvidia NIM (deepseek-ai, z-ai, meta): hapus parameter reasoning/thinking yang tidak didukung
+	if strings.HasPrefix(modelLower, "deepseek-ai/") || strings.HasPrefix(modelLower, "z-ai/") || strings.HasPrefix(modelLower, "meta/") {
+		for _, k := range []string{"reasoning", "reasoning_effort", "thinking", "thinking_config"} {
+			if _, exists := bodyMap[k]; exists {
+				delete(bodyMap, k)
+				changed = true
+			}
+		}
+	}
+
+	// Untuk model Kilo: hapus reasoning_effort agar tidak konflik dengan reasoning.effort
+	if strings.Contains(modelLower, ":free") || strings.HasPrefix(modelLower, "kilo-auto") {
+		if _, exists := bodyMap["reasoning_effort"]; exists {
+			delete(bodyMap, "reasoning_effort")
+			changed = true
+		}
+	}
+
+	if changed {
+		newBody, err := json.Marshal(bodyMap)
+		if err == nil {
+			return ok(payloadResponse{Body: newBody})
+		}
+	}
+
+	return ok(payloadResponse{Body: req.Body})
+}
+
+func sanitizePayloadForUpstream(model string, payload []byte) []byte {
+	var bodyMap map[string]any
+	if err := json.Unmarshal(payload, &bodyMap); err != nil {
+		return payload
+	}
+	changed := false
+	if _, exists := bodyMap["reasoning_effort"]; exists {
+		delete(bodyMap, "reasoning_effort")
+		changed = true
+	}
+	if changed {
+		newBytes, err := json.Marshal(bodyMap)
+		if err == nil {
+			return newBytes
+		}
+	}
+	return payload
 }
 
 func listModels() []map[string]any {
@@ -651,6 +732,7 @@ func injectMimoMarker(raw []byte) []byte {
 }
 
 func callKilo(model string, payload []byte, stream bool) (*upstreamResponse, error) {
+	payload = sanitizePayloadForUpstream(model, payload)
 	headers := http.Header{
 		"Content-Type":          []string{"application/json"},
 		"User-Agent":            []string{"opencode-kilo-provider"},
