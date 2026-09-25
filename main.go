@@ -130,6 +130,11 @@ var kiloModels = map[string]bool{
 	"poolside/laguna-xs-2.1:free":                       true,
 	"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": true,
 	"openrouter/free":                                   true,
+	"stealth/space-bunny-alpha":                          true,
+	"inclusionai/ling-3.0-flash-fin:free":                true,
+	"dots-studio/dots-3-note-preview:free":               true,
+	"liquid/lfm-2.5-2.6b:free":                           true,
+	"nvidia/nemotron-3.5-lightning:free":                 true,
 }
 
 type envelope struct {
@@ -357,6 +362,11 @@ func listModels() []map[string]any {
 		{"poolside/laguna-xs-2.1:free", "Laguna XS 2.1 Free (Kilo)", 262144, 32768, false},
 		{"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "Nemotron 3 Nano Omni Free (Kilo)", 256000, 65536, true},
 		{"openrouter/free", "OpenRouter Free Auto (Kilo)", 200000, 65536, false},
+		{"stealth/space-bunny-alpha", "Space Bunny Alpha (1M)", 1000000, 65536, false},
+		{"inclusionai/ling-3.0-flash-fin:free", "Ling 3.0 Flash Fin Free (Kilo)", 262144, 32768, false},
+		{"dots-studio/dots-3-note-preview:free", "Dots3-Note Preview Free (Kilo)", 512000, 65536, false},
+		{"liquid/lfm-2.5-2.6b:free", "LiquidAI LFM2.5 2.6B Free (Kilo)", 65536, 16384, false},
+		{"nvidia/nemotron-3.5-lightning:free", "Nemotron 3.5 Lightning Free (Kilo)", 1000000, 65536, false},
 	}
 
 	out := make([]map[string]any, 0, len(items))
