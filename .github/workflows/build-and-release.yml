@@ -37,8 +37,9 @@ jobs:
           mkdir -p build/amd64
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC=gcc \
             go build -buildmode=c-shared -ldflags="-s -w" -o build/amd64/cpa-freetier-plugin.so main.go
+          cp plugin.json build/amd64/cpa-freetier-plugin.json
           cd build/amd64
-          zip ../../cpa-freetier-plugin_linux_amd64.zip cpa-freetier-plugin.so
+          zip ../../cpa-freetier-plugin_linux_amd64.zip cpa-freetier-plugin.so cpa-freetier-plugin.json
           cd ../..
 
       - name: Build Linux ARM64 (.so)
@@ -46,8 +47,9 @@ jobs:
           mkdir -p build/arm64
           CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc \
             go build -buildmode=c-shared -ldflags="-s -w" -o build/arm64/cpa-freetier-plugin.so main.go
+          cp plugin.json build/arm64/cpa-freetier-plugin.json
           cd build/arm64
-          zip ../../cpa-freetier-plugin_linux_arm64.zip cpa-freetier-plugin.so
+          zip ../../cpa-freetier-plugin_linux_arm64.zip cpa-freetier-plugin.so cpa-freetier-plugin.json
           cd ../..
 
       - name: Generate Checksums

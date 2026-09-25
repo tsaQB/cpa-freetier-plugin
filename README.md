@@ -62,7 +62,7 @@ unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
 
-### 2. Enable in `config.yaml`
+### 2. Enable in `config.yaml` & Auth Provider
 
 Add this block to your CLIProxyAPI `config.yaml`:
 
@@ -73,6 +73,12 @@ plugins:
   configs:
     cpa-freetier-plugin:
       enabled: true
+```
+
+Register the provider instance in your `auth-dir` (e.g. `~/.cli-proxy-api/cpa-freetier-plugin.json`):
+
+```bash
+echo '{"disabled":false,"provider":"cpa-freetier-plugin","type":"cpa-freetier-plugin"}' > ~/.cli-proxy-api/cpa-freetier-plugin.json
 ```
 
 ### 3. Restart CLIProxyAPI
