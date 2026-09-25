@@ -31,7 +31,9 @@ A native dynamic C ABI plugin (`.so`) for **[CLIProxyAPI](https://github.com/rou
 | `inclusionai/ling-3.0-flash-fin:free` | Kilo AI | Financial & code reasoning specialist |
 | `dots-studio/dots-3-note-preview:free` | Kilo AI | 512k context summarization specialist |
 | `poolside/laguna-s-2.1:free` | Kilo AI | Code generation specialist |
+| `poolside/laguna-xs-2.1:free` | Kilo AI | Lightweight code helper |
 | `liquid/lfm-2.5-2.6b:free` | Kilo AI | Liquid Neural Network model |
+| `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | Kilo AI | Compact multimodal reasoning model |
 | `nex-agi/nex-n2.5-pro:free` | Kilo AI | Agentic & multi-turn model |
 | `nex-agi/nex-n2.5-mini:free` | Kilo AI | Ultra-low latency model |
 | `cohere/north-mini-code:free` | Kilo AI | Fast syntax & code helper |

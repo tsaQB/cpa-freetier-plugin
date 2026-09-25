@@ -1,7 +1,7 @@
 {
   "name": "cpa-freetier-plugin",
   "version": "1.0.0",
-  "description": "CLIProxyAPI native plugin for OpenCode Zen, MiMo, and Kilo free models without login.",
+  "description": "Curated zero-key free AI models (Nemotron 550B, Space Bunny 1M, Step 3.7 Flash) with automatic agent payload sanitization.",
   "license": "MIT",
   "repository": "https://github.com/tsaQB/cpa-freetier-plugin",
   "cli_proxy_api": {
