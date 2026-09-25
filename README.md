@@ -40,10 +40,35 @@ A native dynamic C ABI plugin (`.so`) for **[CLIProxyAPI](https://github.com/rou
 
 ---
 
-## 🚀 Quick Install
+## 🚀 Installation
 
-### 1. Download Binary
+You can install this plugin either via the **CLIProxyAPI WebUI Plugin Store (1-Click)** or **manually via CLI**.
 
+### Option A: Via Plugin Store (Recommended & Easiest)
+
+1. Add this repository's registry URL to your `config.yaml`:
+   ```yaml
+   plugins:
+     enabled: true
+     store-sources:
+       - "https://raw.githubusercontent.com/tsaQB/cpa-freetier-plugin/master/registry.json"
+     configs:
+       cpa-freetier-plugin:
+         enabled: true
+   ```
+2. Open your CLIProxyAPI Management Center (`#/plugin-store`).
+3. Search for **CPA Free-Tier Models** and click **Install**.
+4. Create the auth provider descriptor in your `auth-dir` (default `~/.cli-proxy-api/`):
+   ```bash
+   echo '{"disabled":false,"provider":"cpa-freetier-plugin","type":"cpa-freetier-plugin"}' > ~/.cli-proxy-api/cpa-freetier-plugin.json
+   ```
+5. Restart CLIProxyAPI (`systemctl restart cliproxyapi`).
+
+---
+
+### Option B: Manual CLI Installation
+
+#### 1. Download Binary
 Choose the command matching your architecture:
 
 **Linux ARM64 (aarch64):**
@@ -62,28 +87,19 @@ unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
 
-### 2. Enable in `config.yaml` & Auth Provider
-
-Add this block to your CLIProxyAPI `config.yaml`:
-
+#### 2. Enable in `config.yaml`
 ```yaml
 plugins:
   enabled: true
-  dir: "/root/.cli-proxy-api/plugins"
+  dir: "plugins" # or full path, e.g. ~/.cli-proxy-api/plugins
   configs:
     cpa-freetier-plugin:
       enabled: true
 ```
 
-Register the provider instance in your `auth-dir` (e.g. `~/.cli-proxy-api/cpa-freetier-plugin.json`):
-
+#### 3. Register Auth Provider & Restart
 ```bash
 echo '{"disabled":false,"provider":"cpa-freetier-plugin","type":"cpa-freetier-plugin"}' > ~/.cli-proxy-api/cpa-freetier-plugin.json
-```
-
-### 3. Restart CLIProxyAPI
-
-```bash
 systemctl restart cliproxyapi
 ```
 

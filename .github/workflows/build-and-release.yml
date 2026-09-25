@@ -52,19 +52,28 @@ jobs:
           zip ../../cpa-freetier-plugin_linux_arm64.zip cpa-freetier-plugin.so cpa-freetier-plugin.json
           cd ../..
 
-      - name: Generate Checksums
-        run: |
-          sha256sum cpa-freetier-plugin_linux_amd64.zip cpa-freetier-plugin_linux_arm64.zip > checksums.txt
-          cat checksums.txt
-
-      - name: Determine Tag
+      - name: Determine Tag and Version
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+            TAG="${{ github.event.inputs.tag_name }}"
           else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            TAG="${GITHUB_REF#refs/tags/}"
           fi
+          VER="${TAG#v}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VER}" >> $GITHUB_OUTPUT
+
+      - name: Prepare Standard Store Assets
+        run: |
+          VER="${{ steps.tag.outputs.version }}"
+          cp cpa-freetier-plugin_linux_amd64.zip "cpa-freetier-plugin_${VER}_linux_amd64.zip"
+          cp cpa-freetier-plugin_linux_arm64.zip "cpa-freetier-plugin_${VER}_linux_arm64.zip"
+
+      - name: Generate Checksums
+        run: |
+          sha256sum cpa-freetier-plugin*.zip > checksums.txt
+          cat checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -72,8 +81,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
           files: |
-            cpa-freetier-plugin_linux_amd64.zip
-            cpa-freetier-plugin_linux_arm64.zip
+            cpa-freetier-plugin*.zip
             checksums.txt
           generate_release_notes: true
         env:
