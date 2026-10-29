@@ -143,7 +143,6 @@ jobs:
         run: |
           mkdir -p build/${{ matrix.target }}
           go build -buildmode=c-shared -trimpath -ldflags="-s -w -X main.pluginVersion=${{ steps.tag.outputs.version }}" -o build/${{ matrix.target }}/cpa-freetier-plugin.dylib .
-          cp build/${{ matrix.target }}/cpa-freetier-plugin.dylib build/${{ matrix.target }}/cpa-freetier-plugin.so
           sed 's/"entrypoint": "cpa-freetier-plugin.so"/"entrypoint": "cpa-freetier-plugin.dylib"/' plugin.json > build/${{ matrix.target }}/cpa-freetier-plugin.json
 
       - name: Package Release Archives
@@ -151,8 +150,8 @@ jobs:
           VER="${{ steps.tag.outputs.version }}"
           mkdir -p dist
           cd build/${{ matrix.target }}
-          zip ../../dist/cpa-freetier-plugin_${{ matrix.target }}.zip cpa-freetier-plugin.dylib cpa-freetier-plugin.so cpa-freetier-plugin.json
-          zip ../../dist/cpa-freetier-plugin_${VER}_${{ matrix.target }}.zip cpa-freetier-plugin.dylib cpa-freetier-plugin.so cpa-freetier-plugin.json
+          zip ../../dist/cpa-freetier-plugin_${{ matrix.target }}.zip cpa-freetier-plugin.dylib cpa-freetier-plugin.json
+          zip ../../dist/cpa-freetier-plugin_${VER}_${{ matrix.target }}.zip cpa-freetier-plugin.dylib cpa-freetier-plugin.json
           cd ../..
 
       - name: Upload Artifact

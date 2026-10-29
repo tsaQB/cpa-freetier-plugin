@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -342,14 +343,67 @@ func isOpenCodeFallbackError(statusCode int, body string) bool {
 		lower := strings.ToLower(body)
 		if strings.Contains(lower, "model is unavailable") ||
 			strings.Contains(lower, "unknown model") ||
-			strings.Contains(lower, "model_unavailable") {
+			strings.Contains(lower, "model_unavailable") ||
+			strings.Contains(lower, "modelprotocolunsupported") {
 			return true
 		}
 	}
-	if statusCode == 404 || statusCode == 410 {
+	if statusCode == 404 || statusCode == 410 || statusCode == 503 {
 		return true
 	}
 	return false
+}
+
+// buildOpenCodeTargetURL resolves the appropriate upstream or sidecar endpoint URL.
+// When baseURL is empty, direct upstream URLs are used.
+// When baseURL is set (e.g. zen-proxy or standard OpenAI proxy on 127.0.0.1:8789),
+// requests are mapped to standard OpenAI routes (/v1/chat/completions or /v1/responses),
+// while preserving any custom paths or direct opencode.ai overrides.
+func buildOpenCodeTargetURL(baseURL string, candidate string) string {
+	isResponses := candidate == "muse-spark-1.3-contributor-free" || candidate == "muse-spark-1.2-contributor-free"
+	endpoint := "/chat/completions"
+	if isResponses {
+		endpoint = "/responses"
+	}
+
+	if baseURL == "" {
+		if isResponses {
+			return opencodeResponsesURL
+		}
+		return opencodeChatURL
+	}
+
+	trimmed := strings.TrimRight(baseURL, "/")
+
+	// If candidate is a responses model and URL ends with chat/completions, rewrite endpoint to responses.
+	if isResponses && strings.HasSuffix(trimmed, "/chat/completions") {
+		return strings.TrimSuffix(trimmed, "/chat/completions") + "/responses"
+	}
+	// If candidate is a chat completions model and URL ends with responses, rewrite endpoint to chat/completions.
+	if !isResponses && strings.HasSuffix(trimmed, "/responses") {
+		return strings.TrimSuffix(trimmed, "/responses") + "/chat/completions"
+	}
+
+	// If caller passed full endpoint path already, use it verbatim
+	if strings.HasSuffix(trimmed, "/chat/completions") || strings.HasSuffix(trimmed, "/responses") {
+		return trimmed
+	}
+
+	if u, err := url.Parse(trimmed); err == nil {
+		if (strings.HasSuffix(u.Host, "opencode.ai") || u.Host == "opencode.ai") && (u.Path == "" || u.Path == "/") {
+			return trimmed + "/inference/openai/v1" + endpoint
+		}
+	}
+
+	if strings.HasSuffix(trimmed, "/inference/openai/v1") {
+		return trimmed + endpoint
+	}
+
+	if strings.HasSuffix(trimmed, "/v1") {
+		return trimmed + endpoint
+	}
+
+	return trimmed + "/v1" + endpoint
 }
 
 var (

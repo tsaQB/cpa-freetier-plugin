@@ -99,7 +99,7 @@ const (
 // pluginVersion is stamped at build time:
 // -ldflags "-X main.pluginVersion=$(VERSION)" — one source of truth instead of
 // hand-editing this file, plugin.json and the README on every release.
-var pluginVersion = "1.5.2"
+var pluginVersion = "1.5.3"
 
 // ── Logging ─────────────────────────────────────────────────────────────────
 //
@@ -1513,12 +1513,7 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 	var lastErr error
 
 	for _, candidate := range candidates {
-		targetURL := opencodeChatURL
-		if baseURL != "" {
-			targetURL = baseURL + "/inference/openai/v1/chat/completions"
-		} else if candidate == "muse-spark-1.3-contributor-free" || candidate == "muse-spark-1.2-contributor-free" {
-			targetURL = opencodeResponsesURL
-		}
+		targetURL := buildOpenCodeTargetURL(baseURL, candidate)
 
 		payloadMap["model"] = candidate
 		transformedPayload, err := json.Marshal(payloadMap)
@@ -1594,9 +1589,9 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 			bodyStr := strings.TrimSpace(string(b))
 			if res.StatusCode == 429 && baseURL == "" {
 				lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (Cloudflare blocks Go TLS; Bun sidecar on 127.0.0.1:8789 required for OpenCode)")
-			} else {
-				lastErr = fmt.Errorf("%s: %s", res.Status, bodyStr)
+				return nil, lastErr
 			}
+			lastErr = fmt.Errorf("%s: %s", res.Status, bodyStr)
 
 			if isOpenCodeFallbackError(res.StatusCode, bodyStr) {
 				markModelUnhealthy(candidate, lastErr)

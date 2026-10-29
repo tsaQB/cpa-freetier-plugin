@@ -1,6 +1,6 @@
 {
   "name": "cpa-freetier-plugin",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Curated zero-key free AI models with native management dashboard and automatic agent payload sanitization.",
   "license": "MIT",
   "repository": "https://github.com/tsaQB/cpa-freetier-plugin",
