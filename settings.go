@@ -46,6 +46,11 @@ type IdentitySettings struct {
 	Project   string `json:"project"`
 	SessionID string `json:"sessionId"`
 	Sidecar   string `json:"sidecar"`
+	// ClientVersion overrides the advertised OmniRush CLI version (e.g.
+	// "2.7.8"). Empty means "use the compiled fallback". Keep this current with
+	// the published `omnirush` npm release; a stale version is the "lookalike
+	// client" signal the gateway flags.
+	ClientVersion string `json:"clientVersion"`
 	// ReferralCode is appended to the sign-up links so a new account credits the
 	// operator. Accepts a bare code or a full console URL; "-" disables it.
 	ReferralCode string `json:"referralCode"`

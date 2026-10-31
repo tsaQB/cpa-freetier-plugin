@@ -246,7 +246,25 @@ func applyOmniRushHeaders(req *http.Request, token string) {
 	// The gateway only serves recognised clients: a bare product name (a
 	// versioned "omnirush/x" User-Agent is treated as a lookalike and refused).
 	req.Header.Set("User-Agent", defaultOmniRushUserAgent)
-	req.Header.Set("X-OmniRush-Client", defaultOmniRushClientVer)
+	// Version travels in X-OmniRush-Client (not the UA), resolved live so a
+	// settings/env override or a fallback bump takes effect without touching
+	// call sites.
+	req.Header.Set("X-OmniRush-Client", omniRushClientHeader())
+
+	if !nativeHeadersEnabled() {
+		return
+	}
+	// Native-client fingerprint: a stable per-install device id, a TTL-scoped
+	// session id in the CLI's own id shape, and the runtime/platform hints a
+	// Node CLI reports. These make a gateway call look like it came from an
+	// installed CLI rather than a headless wrapper.
+	req.Header.Set("X-OmniRush-Install-Id", omniRushInstallID())
+	req.Header.Set("X-OmniRush-Session-Id", omniRushSessionID())
+	req.Header.Set("X-OmniRush-Client-Name", "cli")
+	req.Header.Set("X-OmniRush-Client-Version", omniRushClientVersion())
+	req.Header.Set("X-OmniRush-Node", omniRushNodeVersion())
+	req.Header.Set("X-OmniRush-Platform", omniRushPlatform())
+	req.Header.Set("X-OmniRush-Arch", omniRushArch())
 }
 
 // ── Chat Completions -> Responses request ───────────────────────────────────

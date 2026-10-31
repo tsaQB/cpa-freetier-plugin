@@ -19,7 +19,11 @@ import (
 const (
 	defaultOmniRushOrigin    = "https://omnirush.ai/omnirush"
 	defaultOmniRushUserAgent = "omnirush"
-	defaultOmniRushClientVer = "cli/2.7.1"
+	// Deprecated: kept only as a last-resort literal. The advertised version is
+	// resolved live via omniRushClientHeader() (env/settings override + the
+	// omniRushCLIVersionFallback constant), so bumping the CLI version no longer
+	// means editing this string. See omnirush_identity.go.
+	defaultOmniRushClientVer = "cli/2.7.8"
 )
 
 type OmniRushAuth struct {
@@ -285,6 +289,7 @@ func saveOmniRushAuthTo(auth *OmniRushAuth, targetPath string) error {
 
 func clearOmniRushAuth() error {
 	// Signing out means "forget every account", including the pool entries.
+	resetOmniRushSession()
 	if err := saveOmniAccounts(&omniAccountStore{Version: omniAccountStoreVersion}); err != nil {
 		logMsg("omnirush: failed to clear account pool: %v", err)
 	}
@@ -384,7 +389,7 @@ func omniRushDeviceAuthorize() (*omniDeviceAuthorizeResponse, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", defaultOmniRushUserAgent)
-	req.Header.Set("X-OmniRush-Client", defaultOmniRushClientVer)
+	req.Header.Set("X-OmniRush-Client", omniRushClientHeader())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -426,7 +431,7 @@ func omniRushDevicePoll(deviceCode string) (status string, email string, err err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", defaultOmniRushUserAgent)
-	req.Header.Set("X-OmniRush-Client", defaultOmniRushClientVer)
+	req.Header.Set("X-OmniRush-Client", omniRushClientHeader())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -496,7 +501,7 @@ func fetchOmniRushUserEmail(accessToken, origin string) string {
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("User-Agent", defaultOmniRushUserAgent)
-	req.Header.Set("X-OmniRush-Client", defaultOmniRushClientVer)
+	req.Header.Set("X-OmniRush-Client", omniRushClientHeader())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -577,7 +582,7 @@ func refreshOmniAccountToken(acct *OmniRushAccount, staleAccess string) (*OmniRu
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", defaultOmniRushUserAgent)
-	req.Header.Set("X-OmniRush-Client", defaultOmniRushClientVer)
+	req.Header.Set("X-OmniRush-Client", omniRushClientHeader())
 
 	resp, err := client.Do(req)
 	if err != nil {

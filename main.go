@@ -475,6 +475,14 @@ func getHTTPClient(forOpenCode bool) *http.Client {
 	}
 	// No client-wide Timeout: it would abort long SSE responses. ResponseHeaderTimeout
 	// on the transport is what protects against a hung upstream instead.
+	//
+	// Native TLS: when enabled, impersonate a browser ClientHello in-process so
+	// Cloudflare does not 429 the Go TLS fingerprint — this is what lets the
+	// plugin reach OpenCode Zen directly without the external Bun sidecar. The
+	// uTLS transport honours the same proxy/pool tuning as the stdlib one.
+	if nativeTLSEnabled() {
+		return &http.Client{Transport: getUTLSTransport(key, proxy)}
+	}
 	return &http.Client{Transport: getTransport(key, proxy)}
 }
 
@@ -1550,37 +1558,67 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 		}
 
 		isLocal := strings.HasPrefix(targetURL, "http://127.0.0.1") || strings.HasPrefix(targetURL, "http://localhost")
-		var client *http.Client
+
+		// Inner loop: on a Cloudflare TLS-fingerprint 429 (direct egress, native
+		// TLS on) rotate the ClientHello preset and retry the same candidate,
+		// trying each preset at most once before falling through to the normal
+		// fallback handling.
+		maxTLSAttempts := 1
+		if nativeTLSEnabled() && baseURL == "" {
+			maxTLSAttempts = len(presetOrder)
+		}
+
+		var res *http.Response
+		var sendErr error
 		proxyKey := "direct"
-		if isLocal {
-			client = getHTTPClient(false)
-		} else {
-			proxy := getOpenCodeProxy()
-			if proxy != nil {
-				proxyKey = proxy.String()
+		for tlsAttempt := 0; tlsAttempt < maxTLSAttempts; tlsAttempt++ {
+			var client *http.Client
+			proxyKey = "direct"
+			if isLocal {
+				client = getHTTPClient(false)
+			} else {
+				proxy := getOpenCodeProxy()
+				if proxy != nil {
+					proxyKey = proxy.String()
+				}
+				client = getHTTPClient(true)
 			}
-			client = getHTTPClient(true)
-		}
-		logDebug("callOpenCode: egress=%s", proxyKey)
-
-		req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(transformedPayload))
-		if err != nil {
-			return nil, err
-		}
-		req.Header = headers
-
-		started := time.Now()
-		res, err := client.Do(req)
-		if err != nil {
-			if !isLocal {
-				invalidateTransport(proxyKey)
-				invalidateOpenCodeProxy()
+			if nativeTLSEnabled() && !isLocal {
+				proxyKey += "|tls:" + currentPreset().name
 			}
-			logMsg("callOpenCode: transport error model=%s egress=%s after %s: %v", candidate, proxyKey, time.Since(started).Round(time.Millisecond), err)
-			return nil, err
+			logDebug("callOpenCode: egress=%s", proxyKey)
+
+			req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(transformedPayload))
+			if err != nil {
+				return nil, err
+			}
+			req.Header = headers
+
+			started := time.Now()
+			res, sendErr = client.Do(req)
+			if sendErr != nil {
+				if !isLocal {
+					invalidateTransport(proxyKey)
+					invalidateOpenCodeProxy()
+				}
+				logMsg("callOpenCode: transport error model=%s egress=%s after %s: %v", candidate, proxyKey, time.Since(started).Round(time.Millisecond), sendErr)
+				return nil, sendErr
+			}
+			logMsg("callOpenCode: model=%s egress=%s status=%d in %s", candidate, proxyKey, res.StatusCode, time.Since(started).Round(time.Millisecond))
+
+			// Peek for the Cloudflare TLS 429 so we can rotate before consuming
+			// the body as a terminal error below.
+			if res.StatusCode == 429 && baseURL == "" && nativeTLSEnabled() && tlsAttempt < maxTLSAttempts-1 {
+				_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 8192))
+				res.Body.Close()
+				newPreset := rotateTLSPreset()
+				logMsg("callOpenCode: 429 on direct TLS, rotated preset to %q and retrying model=%s", newPreset, candidate)
+				continue
+			}
+			break
 		}
 
-		logMsg("callOpenCode: model=%s egress=%s status=%d in %s", candidate, proxyKey, res.StatusCode, time.Since(started).Round(time.Millisecond))
+		logDebug("callOpenCode: final egress=%s", proxyKey)
 
 		if res.StatusCode >= 400 {
 			b, _ := io.ReadAll(io.LimitReader(res.Body, 8192))
@@ -1588,7 +1626,11 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 			res.Body.Close()
 			bodyStr := strings.TrimSpace(string(b))
 			if res.StatusCode == 429 && baseURL == "" {
-				lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (Cloudflare blocks Go TLS; Bun sidecar on 127.0.0.1:8789 required for OpenCode)")
+				if nativeTLSEnabled() {
+					lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (Cloudflare refused every native-TLS ClientHello preset; set CPA_NATIVE_TLS_PRESET or fall back to the Bun sidecar on 127.0.0.1:8789)")
+				} else {
+					lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (Cloudflare blocks Go TLS; enable native TLS with CPA_NATIVE_TLS=1 or run the Bun sidecar on 127.0.0.1:8789)")
+				}
 				return nil, lastErr
 			}
 			lastErr = fmt.Errorf("%s: %s", res.Status, bodyStr)
