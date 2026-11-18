@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/CLIProxyAPI-ABI%20v1%20Compliant-00ADD8?style=for-the-badge&logo=go" alt="CPA ABI v1" />
   <img src="https://img.shields.io/badge/Platforms-Linux%20%7C%20Darwin%20%7C%20Windows-4A154B?style=for-the-badge" alt="Cross Platform" />
-  <img src="https://img.shields.io/badge/Release-v1.5.3-success?style=for-the-badge" alt="Release" />
+  <img src="https://img.shields.io/badge/Release-v1.5.4-success?style=for-the-badge" alt="Release" />
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License MIT" />
 </p>
 
@@ -11,7 +11,7 @@ A high-performance, native dynamic C ABI v1 plugin (`.so` / `.dylib` / `.dll`) f
 
 ---
 
-## 🌟 Key Features (v1.5.3)
+## 🌟 Key Features (v1.5.4)
 
 * **Zero-Key & Auto-Registered:** Ready to use immediately. Automatically writes its provider auth descriptor (`~/.cli-proxy-api/cpa-freetier-plugin.json`) on `cliproxy_plugin_init`, `plugin.register`, and `plugin.reconfigure` unless disabled via `CPA_NO_AUTH_DESCRIPTOR=1`.
 * **Native Management Center Dashboard (`management_api`):**
@@ -23,7 +23,7 @@ A high-performance, native dynamic C ABI v1 plugin (`.so` / `.dylib` / `.dll`) f
   * Speaks the gateway's **OpenAI Responses API** (`POST https://omnirush.ai/omnirush/v1/responses`) and translates both directions: Chat Completions requests in, `response.output_text.delta` / `function_call` / `response.completed` SSE events back out as standard `chat.completion.chunk` frames (text, reasoning, tool calls and usage all preserved).
   * **Live model catalog:** the advertised OmniRush ids come from the account's own `GET /v1/models` (cached 10 minutes), so a model the gateway starts or stops serving needs no plugin release. Only ids the account can actually call are listed.
   * Automatic token refresh and rotation with mutex-locked grace window handling on HTTP `401`.
-* **OpenCode v2 Wire Protocol & Automatic Sidecar Routing:**
+* **OpenCode v2 Wire Protocol & Native Transport (v1.5.4):**
   * Implements the OpenCode v2 CLI contract (`opencode/latest/2.0.32/cli`), descending-timestamp session affinity (`ses_<12-hex><14-base62>`, 30-minute TTL with automatic expiry sweeping), and automatic `read`/`shell` fingerprint tool injection (renaming caller `read`/`shell` tools to `read_client`/`shell_client` on send and restoring them transparently in responses).
   * **In-Process CLI Transport (default, no sidecar):** Cloned CLI ClientHello plus hand-written header order let the plugin call `https://opencode.ai` directly and pass the Cloudflare gate and 12-tool manifest checks (`429 FreeUsageLimitError` / `403 FreeTierError`) with zero extra processes. A local Bun/`zen-proxy` sidecar on `127.0.0.1:8789` is still supported, but only used when set explicitly or when `CPA_NATIVE_TLS=0`.
 * **Universal Agent & Client Compatibility (`request.normalize` + Executor Sanitizer):**
@@ -116,7 +116,7 @@ Download the verified platform package from [Releases](https://github.com/tsaQB/
 #### 🐧 Linux (x86_64 / amd64)
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
-curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.3/cpa-freetier-plugin_1.5.3_linux_amd64.zip -o /tmp/plugin.zip
+curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.4/cpa-freetier-plugin_1.5.4_linux_amd64.zip -o /tmp/plugin.zip
 unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
@@ -124,7 +124,7 @@ rm /tmp/plugin.zip
 #### 🐧 Linux (ARM64 / aarch64)
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
-curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.3/cpa-freetier-plugin_1.5.3_linux_arm64.zip -o /tmp/plugin.zip
+curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.4/cpa-freetier-plugin_1.5.4_linux_arm64.zip -o /tmp/plugin.zip
 unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
@@ -132,7 +132,7 @@ rm /tmp/plugin.zip
 #### 🍏 macOS (Apple Silicon M1/M2/M3/M4)
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
-curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.3/cpa-freetier-plugin_1.5.3_darwin_arm64.zip -o /tmp/plugin.zip
+curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.4/cpa-freetier-plugin_1.5.4_darwin_arm64.zip -o /tmp/plugin.zip
 unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
@@ -140,7 +140,7 @@ rm /tmp/plugin.zip
 #### 🍏 macOS (Intel x86_64)
 ```bash
 mkdir -p ~/.cli-proxy-api/plugins
-curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.3/cpa-freetier-plugin_1.5.3_darwin_amd64.zip -o /tmp/plugin.zip
+curl -sL https://github.com/tsaQB/cpa-freetier-plugin/releases/download/v1.5.4/cpa-freetier-plugin_1.5.4_darwin_amd64.zip -o /tmp/plugin.zip
 unzip -o /tmp/plugin.zip -d ~/.cli-proxy-api/plugins/
 rm /tmp/plugin.zip
 ```
