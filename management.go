@@ -626,7 +626,8 @@ func handleStatusAPI() ([]byte, error) {
 			"zen_addr":   sidecarAddr,
 			"latency_ms": sidecarMS,
 		},
-		"harness": HarnessInfo(),
+		"egress_cooling": egressCoolingSnapshot(),
+		"harness":        HarnessInfo(),
 		"proxy_pool": map[string]any{
 			"configured": proxyConfigured,
 			"reachable":  proxyMS != "down",

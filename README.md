@@ -197,6 +197,12 @@ When calling the remote `https://opencode.ai` upstream (`isLocal == false`), Clo
 3. **`OPENCODE_DATACENTER_PROXY_POOL` (Opt-in only):** Consulted **only** when `OPENCODE_ALLOW_DATACENTER` is enabled (`1`, `true`, `yes`, `on`). Defaults to `127.0.0.1:8123,127.0.0.1:8124,127.0.0.1:8125,127.0.0.1:8126`.
 4. **Ambient / Direct Network Fallback:** If no pool candidate is reachable (or `OPENCODE_PROXY_POOL=""`), the plugin falls back to `http.ProxyFromEnvironment` (respecting `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`, or connecting direct).
 
+### 2b. Free-Quota Cooldowns (`opencode_egress.go`)
+
+Free-tier quota is metered **per network**, so a pool only spreads the allowance if spent egresses are remembered. A `429 FreeUsageLimitError` benches that egress until its own `Retry-After` and the request moves to the next candidate; a served request clears the bench. The table is persisted at `~/.cli-proxy-api/opencode-egress-cooling.json` (`0600`, override with `CPA_EGRESS_COOLING_FILE`) so a restart does not resurrect a burnt egress, and egress order is always healthy-first, then soonest-recovery, then the ambient path.
+
+Model-level caps exist too, so when every egress is spent the plugin keeps walking its fallback model chain instead of failing on the spot. A fingerprint refusal (no quota verdict) stays terminal, because another egress would be refused the same way.
+
 ### 3. Quick Setup by Environment
 
 * **🏠 Laptop, Home PC, or Residential Broadband:**

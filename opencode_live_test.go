@@ -100,9 +100,12 @@ func TestOpenCodeLiveE2E(t *testing.T) {
 func TestClassifyOpenCode429Quota(t *testing.T) {
 	hdr := http.Header{}
 	hdr.Set("Retry-After", "33608")
-	quota, suffix := classifyOpenCode429(hdr, `{"type":"error","error":{"type":"FreeUsageLimitError","message":"Free usage limit reached."}}`)
+	quota, retry, suffix := classifyOpenCode429(hdr, `{"type":"error","error":{"type":"FreeUsageLimitError","message":"Free usage limit reached."}}`)
 	if !quota {
 		t.Fatal("quota body must classify as quota")
+	}
+	if retry < time.Hour {
+		t.Fatalf("retry duration must come from Retry-After, got %s", retry)
 	}
 	if !strings.Contains(suffix, "retry in") {
 		t.Fatalf("suffix must carry the reset hint, got %q", suffix)
@@ -112,11 +115,11 @@ func TestClassifyOpenCode429Quota(t *testing.T) {
 func TestClassifyOpenCode429Fingerprint(t *testing.T) {
 	hdr := http.Header{}
 	hdr.Set("Retry-After", "60")
-	if quota, _ := classifyOpenCode429(hdr, "<html>cloudflare challenge</html>"); quota {
+	if quota, _, _ := classifyOpenCode429(hdr, "<html>cloudflare challenge</html>"); quota {
 		t.Fatal("html challenge must not classify as quota")
 	}
 	hdr.Set("CF-Mitigated", "challenge")
-	if quota, _ := classifyOpenCode429(hdr, `{"error":{"type":"FreeUsageLimitError"}}`); quota {
+	if quota, _, _ := classifyOpenCode429(hdr, `{"error":{"type":"FreeUsageLimitError"}}`); quota {
 		t.Fatal("cf-mitigated wins over the body wording")
 	}
 }
