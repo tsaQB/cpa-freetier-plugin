@@ -469,7 +469,16 @@ func getHTTPClient(forOpenCode bool) *http.Client {
 	if !forOpenCode {
 		return &http.Client{Transport: getTransport("env", nil)}
 	}
-	proxy := getOpenCodeProxy()
+	return getHTTPClientWithProxy(true, getOpenCodeProxy())
+}
+
+// getHTTPClientWithProxy builds the client for one concrete egress, so a retry
+// can move to a different proxy without the client silently re-resolving the
+// pool on its own.
+func getHTTPClientWithProxy(forOpenCode bool, proxy *url.URL) *http.Client {
+	if !forOpenCode {
+		return &http.Client{Transport: getTransport("env", nil)}
+	}
 	key := "env"
 	if proxy != nil {
 		key = proxy.String()
@@ -1561,27 +1570,28 @@ func openCodeEgressMode() string {
 // in the thousands of seconds and no CF mitigation header); the fingerprint
 // flavour comes from the Cloudflare gate and carries either cf-mitigated or a
 // non-JSON body. Returns the quota verdict and a human " (retry in …)" suffix.
-func classifyOpenCode429(hdr http.Header, body string) (bool, string) {
+func classifyOpenCode429(hdr http.Header, body string) (bool, time.Duration, string) {
 	lower := strings.ToLower(body)
 	quota := strings.Contains(lower, "freeusagelimiterror") ||
 		strings.Contains(lower, "free usage limit") ||
 		strings.Contains(lower, "used today's free")
 	if mitigated := strings.TrimSpace(hdr.Get("CF-Mitigated")); mitigated != "" {
 		// Cloudflare served a challenge/block page, not an app error.
-		return false, ""
+		return false, 0, ""
 	}
 	if !quota {
-		return false, ""
+		return false, 0, ""
 	}
-	suffix := ""
+	// Retry-After is what benches the egress; keep the raw value too so the
+	// operator sees exactly what upstream said.
 	if ra := strings.TrimSpace(hdr.Get("Retry-After")); ra != "" {
 		if secs, err := strconv.Atoi(ra); err == nil && secs > 0 {
-			suffix = fmt.Sprintf(" (retry in %s)", (time.Duration(secs) * time.Second).Round(time.Minute))
-		} else {
-			suffix = fmt.Sprintf(" (retry after %s)", ra)
+			d := time.Duration(secs) * time.Second
+			return true, d, fmt.Sprintf(" (retry in %s)", d.Round(time.Minute))
 		}
+		return true, defaultQuotaCooldown, fmt.Sprintf(" (retry after %s)", ra)
 	}
-	return true, suffix
+	return true, defaultQuotaCooldown, ""
 }
 
 // truncateForLog keeps an upstream body short enough to ride inside an error.
@@ -1635,7 +1645,8 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 
 	var lastErr error
 
-	for _, candidate := range candidates {
+	candidateLoop:
+	for cIdx, candidate := range candidates {
 		targetURL := buildOpenCodeTargetURL(baseURL, candidate)
 
 		payloadMap["model"] = candidate
@@ -1688,98 +1699,124 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 		var res *http.Response
 		var sendErr error
 		proxyKey := "direct"
-		for tlsAttempt := 0; tlsAttempt < maxTLSAttempts; tlsAttempt++ {
-			var client *http.Client
-			proxyKey = "direct"
-			var proxy *url.URL
-			if isLocal {
-				client = getHTTPClient(false)
-			} else {
-				proxy = getOpenCodeProxy()
-				if proxy != nil {
-					proxyKey = proxy.String()
-				}
-				client = getHTTPClient(true)
-			}
-			logDebug("callOpenCode: egress=%s", proxyKey)
+		attempts := openCodeEgressAttempts(isLocal)
 
-			started := time.Now()
-			if useRawCLI {
-				// Direct egress: hand-written request over the cloned CLI
-				// ClientHello (net/http would sort the headers and its TLS stack
-				// gets 429'd by the Cloudflare gate).
-				var ures *upstreamResponse
-				ures, sendErr = openCodeRawDo(context.Background(), targetURL, headers, transformedPayload, proxy, settingsHeaderTimeout())
-				if ures != nil {
-					res = &http.Response{StatusCode: ures.status, Header: ures.header, Body: ures.body}
-				}
-			} else {
-				req, rerr := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(transformedPayload))
-				if rerr != nil {
-					return nil, rerr
-				}
-				req.Header = headers
-				res, sendErr = client.Do(req)
-			}
-			if sendErr != nil {
-				if !isLocal {
-					invalidateTransport(proxyKey)
-					invalidateOpenCodeProxy()
-				}
-				logMsg("callOpenCode: transport error model=%s egress=%s after %s: %v", candidate, proxyKey, time.Since(started).Round(time.Millisecond), sendErr)
-				return nil, sendErr
-			}
-			logMsg("callOpenCode: model=%s egress=%s status=%d in %s", candidate, proxyKey, res.StatusCode, time.Since(started).Round(time.Millisecond))
+		logDebug("callOpenCode: %d egress attempt(s)", len(attempts))
 
-			// Peek for the Cloudflare TLS 429 so we can rotate before consuming
-			// the body as a terminal error below.
-			if !useRawCLI && res.StatusCode == 429 && baseURL == "" && nativeTLSEnabled() && tlsAttempt < maxTLSAttempts-1 {
-				_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 8192))
+	attemptLoop:
+		for aIdx, att := range attempts {
+			proxy := att.proxy
+			proxyKey = att.key
+			for tlsAttempt := 0; tlsAttempt < maxTLSAttempts; tlsAttempt++ {
+				var client *http.Client
+				if isLocal {
+					client = getHTTPClient(false)
+				} else {
+					client = getHTTPClientWithProxy(true, proxy)
+				}
+				logDebug("callOpenCode: egress=%s", proxyKey)
+
+				started := time.Now()
+				if useRawCLI {
+					// Direct egress: hand-written request over the cloned CLI
+					// ClientHello (net/http would sort the headers and its TLS stack
+					// gets 429'd by the Cloudflare gate).
+					var ures *upstreamResponse
+					ures, sendErr = openCodeRawDo(context.Background(), targetURL, headers, transformedPayload, proxy, settingsHeaderTimeout())
+					if ures != nil {
+						res = &http.Response{StatusCode: ures.status, Header: ures.header, Body: ures.body}
+					}
+				} else {
+					req, rerr := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(transformedPayload))
+					if rerr != nil {
+						return nil, rerr
+					}
+					req.Header = headers
+					res, sendErr = client.Do(req)
+				}
+				if sendErr != nil {
+					if !isLocal {
+						invalidateTransport(proxyKey)
+						invalidateOpenCodeProxy()
+					}
+					logMsg("callOpenCode: transport error model=%s egress=%s after %s: %v", candidate, proxyKey, time.Since(started).Round(time.Millisecond), sendErr)
+					// A dead egress is a reason to try the next one, not to fail
+					// the request while a healthy egress is still listed.
+					lastErr = sendErr
+					if aIdx < len(attempts)-1 {
+						continue attemptLoop
+					}
+					return nil, sendErr
+				}
+				logMsg("callOpenCode: model=%s egress=%s status=%d in %s", candidate, proxyKey, res.StatusCode, time.Since(started).Round(time.Millisecond))
+
+				// Peek for the Cloudflare TLS 429 so we can rotate before consuming
+				// the body as a terminal error below.
+				if !useRawCLI && res.StatusCode == 429 && baseURL == "" && nativeTLSEnabled() && tlsAttempt < maxTLSAttempts-1 {
+					_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 8192))
+					res.Body.Close()
+					newPreset := rotateTLSPreset()
+					logMsg("callOpenCode: 429 on direct TLS, rotated preset to %q and retrying model=%s", newPreset, candidate)
+					continue
+				}
+				break
+			}
+
+			logDebug("callOpenCode: final egress=%s", proxyKey)
+
+			if res.StatusCode >= 400 {
+				b, _ := io.ReadAll(io.LimitReader(res.Body, 8192))
+				_, _ = io.Copy(io.Discard, res.Body)
 				res.Body.Close()
-				newPreset := rotateTLSPreset()
-				logMsg("callOpenCode: 429 on direct TLS, rotated preset to %q and retrying model=%s", newPreset, candidate)
-				continue
-			}
-			break
-		}
+				bodyStr := strings.TrimSpace(string(b))
+				if res.StatusCode == 429 && baseURL == "" {
+					// Two very different 429s share one status code: the
+					// per-network free quota (FreeUsageLimitError, carries a long
+					// Retry-After) and a Cloudflare fingerprint refusal. The quota
+					// one benches this egress and moves on; the fingerprint one is
+					// an egress-independent problem and stays terminal.
+					quota, retry, retryText := classifyOpenCode429(res.Header, bodyStr)
+					if quota {
+						until := markEgressCooling(proxyKey, retry)
+						lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (egress=%s; free-tier quota for this network is spent%s, benched until %s)", proxyKey, retryText, until.Format("15:04 MST"))
+						if aIdx < len(attempts)-1 {
+							logMsg("callOpenCode: quota spent on egress=%s, trying next egress", proxyKey)
+							continue attemptLoop
+						}
+						// No egress left. Model-level caps exist too (one model can
+						// be spent while a sibling still answers on the same
+						// network), so keep walking the fallback chain.
+						if cIdx < len(candidates)-1 {
+							logMsg("callOpenCode: quota on every egress for %s, trying next candidate model", candidate)
+							continue candidateLoop
+						}
+						return nil, lastErr
+					}
+					switch {
+					case useRawCLI:
+						lastErr = fmt.Errorf("429 Too Many Requests (egress=%s; Cloudflare refused the cloned CLI ClientHello without a quota verdict: %s)", proxyKey, truncateForLog(bodyStr, 200))
+					case nativeTLSEnabled():
+						lastErr = fmt.Errorf("429 Too Many Requests (Cloudflare refused every native-TLS ClientHello preset; set CPA_NATIVE_TLS_PRESET or fall back to the Bun sidecar on 127.0.0.1:8789)")
+					default:
+						lastErr = fmt.Errorf("429 Too Many Requests (Cloudflare blocks Go TLS; enable native TLS with CPA_NATIVE_TLS=1 or run the Bun sidecar on 127.0.0.1:8789)")
+					}
+					return nil, lastErr
+				}
+				lastErr = fmt.Errorf("%s: %s", res.Status, bodyStr)
 
-		logDebug("callOpenCode: final egress=%s", proxyKey)
-
-		if res.StatusCode >= 400 {
-			b, _ := io.ReadAll(io.LimitReader(res.Body, 8192))
-			_, _ = io.Copy(io.Discard, res.Body)
-			res.Body.Close()
-			bodyStr := strings.TrimSpace(string(b))
-			if res.StatusCode == 429 && baseURL == "" {
-				// Two very different 429s share one status code: the
-				// per-network free quota (FreeUsageLimitError, carries a long
-				// Retry-After) and a Cloudflare fingerprint refusal. Report
-				// which one it is instead of guessing, because the operator
-				// fixes them differently: wait, or change egress/ClientHello.
-				quota, retryAfter := classifyOpenCode429(res.Header, bodyStr)
-				switch {
-				case quota:
-					lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (egress=%s; free-tier quota for this network is spent%s — wait for the reset or use a different egress)", proxyKey, retryAfter)
-				case useRawCLI:
-					lastErr = fmt.Errorf("429 Too Many Requests (egress=%s; Cloudflare refused the cloned CLI ClientHello without a quota verdict: %s)", proxyKey, truncateForLog(bodyStr, 200))
-				case nativeTLSEnabled():
-					lastErr = fmt.Errorf("429 Too Many Requests (Cloudflare refused every native-TLS ClientHello preset; set CPA_NATIVE_TLS_PRESET or fall back to the Bun sidecar on 127.0.0.1:8789)")
-				default:
-					lastErr = fmt.Errorf("429 Too Many Requests (Cloudflare blocks Go TLS; enable native TLS with CPA_NATIVE_TLS=1 or run the Bun sidecar on 127.0.0.1:8789)")
+				if isOpenCodeFallbackError(res.StatusCode, bodyStr) {
+					markModelUnhealthy(candidate, lastErr)
+					logMsg("callOpenCode: candidate %s failed (%s), attempting next fallback...", candidate, res.Status)
+					continue candidateLoop
 				}
 				return nil, lastErr
 			}
-			lastErr = fmt.Errorf("%s: %s", res.Status, bodyStr)
 
-			if isOpenCodeFallbackError(res.StatusCode, bodyStr) {
-				markModelUnhealthy(candidate, lastErr)
-				logMsg("callOpenCode: candidate %s failed (%s), attempting next fallback...", candidate, res.Status)
-				continue
-			}
-			return nil, lastErr
+			clearEgressCooling(proxyKey)
+			return &upstreamResponse{status: res.StatusCode, header: res.Header, body: res.Body}, nil
 		}
 
-		return &upstreamResponse{status: res.StatusCode, header: res.Header, body: res.Body}, nil
+		return nil, lastErr
 	}
 
 	return nil, lastErr
