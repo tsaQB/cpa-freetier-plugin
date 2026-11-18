@@ -100,7 +100,8 @@ func defaultPluginSettings() *PluginSettings {
 			UserAgent: opencodeClientUA,
 			Client:    "cli",
 			Project:   getProjectHash(),
-			// Empty means "auto": probe 127.0.0.1:8789, then fall back to env.
+			// Empty means "native": in-process transport, no sidecar. "-" forces
+			// direct, "auto" restores the legacy 127.0.0.1:8789 probe.
 			Sidecar:      "",
 			ReferralCode: defaultOmniReferralCode,
 		},
@@ -133,7 +134,9 @@ func normalizeSettings(s *PluginSettings) {
 	s.Proxy.DatacenterPool = strings.TrimSpace(s.Proxy.DatacenterPool)
 	s.Proxy.OmniRush = strings.TrimSpace(s.Proxy.OmniRush)
 
-	if strings.TrimSpace(s.Identity.UserAgent) == "" || s.Identity.UserAgent == "opencode/latest/2.0.32/cli" {
+	if strings.TrimSpace(s.Identity.UserAgent) == "" ||
+		s.Identity.UserAgent == "opencode/latest/2.0.32/cli" ||
+		s.Identity.UserAgent == "opencode/latest/2.1.4/cli" {
 		s.Identity.UserAgent = def.Identity.UserAgent
 	}
 	if strings.TrimSpace(s.Identity.Client) == "" {

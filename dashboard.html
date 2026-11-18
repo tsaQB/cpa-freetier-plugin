@@ -1943,13 +1943,18 @@
       /* Telemetry */
       const hEl = document.getElementById('teleHarness');
       if (hEl) {
-        if (data.sidecar && data.sidecar.zen_active) {
+        const mode = (data.sidecar && data.sidecar.mode) || (data.sidecar && data.sidecar.zen_active ? 'sidecar' : 'native');
+        if (mode === 'sidecar' || mode === 'base-url') {
           const lat = data.sidecar.latency_ms && data.sidecar.latency_ms !== 'down' ? `${data.sidecar.latency_ms} ms` : 'Active';
-          hEl.innerHTML = `<span class="dot" style="color:var(--status-ok)"></span> Bun · ${lat}`;
-          hEl.title = `Bun sidecar connected (${data.sidecar.zen_url || '127.0.0.1:8789'}). OpenCode traffic bridged through BoringSSL TLS.`;
+          const label = mode === 'sidecar' ? 'Bun' : 'Base URL';
+          hEl.innerHTML = `<span class="dot" style="color:var(--status-ok)"></span> ${label} · ${lat}`;
+          hEl.title = `OpenCode traffic goes to ${data.sidecar.zen_url} instead of the in-process native transport.`;
+        } else if (data.sidecar && data.sidecar.native_tls) {
+          hEl.innerHTML = `<span class="dot" style="color:var(--status-ok)"></span> Native uTLS`;
+          hEl.title = 'In-process OpenCode CLI TLS ClientHello + header order active (no external sidecar needed).';
         } else {
           hEl.innerHTML = `<span class="dot" style="color:var(--status-warn)"></span> Needed`;
-          hEl.title = 'OpenCode sidecar not detected (:8789). Direct Go TLS is blocked with 429 by Cloudflare.';
+          hEl.title = 'Native TLS disabled and OpenCode sidecar not detected (:8789). Direct Go TLS is blocked with 429 by Cloudflare.';
         }
       }
 
@@ -1958,16 +1963,24 @@
       const ocTitle = document.getElementById('opencodeSidecarTitle');
       const ocDesc = document.getElementById('opencodeSidecarDesc');
       if (ocPill && ocTitle && ocDesc) {
-        if (data.sidecar && data.sidecar.zen_active) {
+        const mode = (data.sidecar && data.sidecar.mode) || (data.sidecar && data.sidecar.zen_active ? 'sidecar' : 'native');
+        if (mode === 'sidecar' || mode === 'base-url') {
           ocPill.className = 'status-pill ok';
-          ocPill.innerHTML = '<span class="dot"></span> Active';
-          ocTitle.textContent = `Bun Sidecar Active (${data.sidecar.zen_url || data.sidecar.zen_addr || '127.0.0.1:8789'})`;
-          ocDesc.textContent = 'All OpenCode inference requests are bridged through Bun BoringSSL TLS to pass Cloudflare gate filters.';
+          ocPill.innerHTML = '<span class="dot"></span> External';
+          ocTitle.textContent = mode === 'sidecar'
+            ? `Bun Sidecar Active (${data.sidecar.zen_url || data.sidecar.zen_addr || '127.0.0.1:8789'})`
+            : `Custom Base URL (${data.sidecar.zen_url})`;
+          ocDesc.textContent = 'OpenCode inference is proxied through an external process instead of the in-process native transport.';
+        } else if (data.sidecar && data.sidecar.native_tls) {
+          ocPill.className = 'status-pill ok';
+          ocPill.innerHTML = '<span class="dot"></span> Native uTLS';
+          ocTitle.textContent = 'In-Process CLI Transport Active';
+          ocDesc.textContent = 'Using cloned OpenCode CLI TLS ClientHello and HTTP/1.1 header order directly inside the Go plugin (no external Bun sidecar required).';
         } else {
           ocPill.className = 'status-pill warn';
           ocPill.innerHTML = '<span class="dot"></span> Sidecar Required';
           ocTitle.textContent = 'Sidecar Not Detected (127.0.0.1:8789)';
-          ocDesc.textContent = 'Direct Go TLS is blocked by Cloudflare with HTTP 429 FreeUsageLimitError. Run zen-proxy on :8789 or configure a sidecar URL in Settings.';
+          ocDesc.textContent = 'Direct Go TLS is blocked by Cloudflare with HTTP 429 FreeUsageLimitError. Enable CPA_NATIVE_TLS=1 or run zen-proxy on :8789.';
         }
       }
 

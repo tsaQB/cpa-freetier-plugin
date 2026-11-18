@@ -132,9 +132,9 @@ func TestManagementHandleStatusAPI(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected models array in status API")
 	}
-	// 24 curated OpenCode/Kilo models plus whatever the OmniRush catalog serves
+	// Curated OpenCode/Kilo models plus whatever the OmniRush catalog serves
 	// (the fallback set when no credentials are configured in tests).
-	minModels := 24 + len(omniRushFallbackModels)
+	minModels := len(curatedModels()) + len(omniRushFallbackModels)
 	if len(models) < minModels {
 		t.Errorf("expected at least %d models in status API, got %d", minModels, len(models))
 	}
