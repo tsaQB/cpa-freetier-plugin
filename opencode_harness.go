@@ -50,8 +50,12 @@ var openCodeFallbackModels = []string{
 	"big-pickle",
 	"nemotron-3.5-lightning-free",
 	"deepseek-v4.1-flash-free",
-	"nemotron-3.5-super-vl-free",
 	"glm-5.3-flash-free",
+	"minimax-m3.1-flash-free",
+	"longcat-2.5-free",
+	"iceman-free",
+	"inkling-2-small-free",
+	"nemotron-3.5-super-vl-free",
 	"beam-free",
 	"flint-40b-free",
 }
@@ -280,6 +284,11 @@ func generateTraceHeaders() (b3 string, traceparent string) {
 // Session caching with 30-minute TTL
 func descendingTimeHex(ts int64, counter int64) string {
 	val := uint64(^(ts*0x1000 + counter)) & sessionPrefixMask
+	return fmt.Sprintf("%012x", val)
+}
+
+func ascendingTimeHex(ts int64, counter int64) string {
+	val := uint64(ts*0x1000+counter) & sessionPrefixMask
 	return fmt.Sprintf("%012x", val)
 }
 
@@ -651,4 +660,34 @@ func (f *streamToolFilter) filterChunk(cleaned string) (string, bool) {
 		}
 	}
 	return cleaned, true
+}
+
+// genRequestID mints the CLI-style `msg_` request id: ascending-time hex plus a
+// random base62 tail. The CLI uses descending time for `ses_` and ascending
+// time for `msg_`.
+func genRequestID() string {
+	sessionMu.Lock()
+	defer sessionMu.Unlock()
+	now := time.Now().UnixMilli()
+	if now != lastSessionTs {
+		lastSessionTs = now
+		sessionCounter = 0
+	}
+	sessionCounter++
+	timeHex := ascendingTimeHex(now, sessionCounter)
+	randBytes := make([]byte, 14)
+	_, _ = rand.Read(randBytes)
+	for i := range randBytes {
+		randBytes[i] = base62Chars[int(randBytes[i])%len(base62Chars)]
+	}
+	return fmt.Sprintf("msg_%s%s", timeHex, string(randBytes))
+}
+
+// hostFromURL returns the authority of a URL for the Host header.
+func hostFromURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
+	}
+	return u.Host
 }

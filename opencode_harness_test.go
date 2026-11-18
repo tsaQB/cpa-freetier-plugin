@@ -524,9 +524,9 @@ func TestOpenCodeWireProtocolHeaders(t *testing.T) {
 		t.Errorf("Authorization header mismatch: got %q, want 'Bearer public'", auth)
 	}
 
-	// 2. User-Agent: opencode/latest/2.1.4/cli
-	if ua := capturedHeader.Get("User-Agent"); ua != "opencode/latest/2.1.4/cli" {
-		t.Errorf("User-Agent header mismatch: got %q, want 'opencode/latest/2.1.4/cli'", ua)
+	// 2. User-Agent: opencodeClientUA
+	if ua := capturedHeader.Get("User-Agent"); ua != opencodeClientUA {
+		t.Errorf("User-Agent header mismatch: got %q, want %q", ua, opencodeClientUA)
 	}
 
 	// 3. x-opencode-client: cli
@@ -576,9 +576,14 @@ func TestOpenCodeWireProtocolHeaders(t *testing.T) {
 		t.Errorf("traceparent header invalid format: %q", tp)
 	}
 
-	// 8. Accept: text/event-stream
-	if accept := capturedHeader.Get("Accept"); accept != "text/event-stream" {
-		t.Errorf("Accept header mismatch: got %q, want 'text/event-stream'", accept)
+	// 8. Accept: */* and x-opencode-request: msg_<ascending 12 hex><14 base62>
+	if accept := capturedHeader.Get("Accept"); accept != "*/*" {
+		t.Errorf("Accept header mismatch: got %q, want '*/*'", accept)
+	}
+	reqID := capturedHeader.Get("x-opencode-request")
+	reqRegex := regexp.MustCompile(`^msg_[0-9a-f]{12}[0-9A-Za-z]{14}$`)
+	if !reqRegex.MatchString(reqID) {
+		t.Errorf("x-opencode-request invalid format: %q", reqID)
 	}
 }
 

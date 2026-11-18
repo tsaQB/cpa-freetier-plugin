@@ -60,6 +60,7 @@ import "C"
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -90,7 +91,7 @@ const (
 	// OpenCode v2 Endpoints
 	opencodeChatURL      = "https://opencode.ai/inference/openai/v1/chat/completions"
 	opencodeResponsesURL = "https://opencode.ai/inference/openai/v1/responses"
-	opencodeClientUA     = "opencode/latest/2.1.4/cli"
+	opencodeClientUA     = "opencode/1.19.5 ai-sdk/provider-utils/4.0.23 runtime/bun/1.4.4"
 
 	// Kilo Endpoints
 	kiloChatURL = "https://api.kilo.ai/api/gateway/chat/completions"
@@ -487,14 +488,16 @@ func getHTTPClient(forOpenCode bool) *http.Client {
 }
 
 var openCodeModels = map[string]bool{
-	"flint-40b-free":              true,
-	"nemotron-3-ultra-free":       true,
-	"glm-5.3-flash-free":          true,
 	"big-pickle":                  true,
-	"deepseek-v4.1-flash-free":    true,
-	"cat-jam-free":                true,
 	"mimo-v2.6-flash-free":        true,
+	"deepseek-v4.1-flash-free":    true,
+	"glm-5.3-flash-free":          true,
+	"minimax-m3.1-flash-free":     true,
+	"longcat-2.5-free":            true,
+	"iceman-free":                 true,
+	"inkling-2-small-free":        true,
 	"beam-free":                   true,
+	"flint-40b-free":              true,
 	"nemotron-3.5-super-vl-free":  true,
 	"nemotron-3.5-lightning-free": true,
 }
@@ -507,13 +510,12 @@ var kiloModels = map[string]bool{
 	"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": true,
 	"nvidia/nemotron-3.5-lightning:free":                 true,
 	"nvidia/nemotron-3.5-super-vl:free":                  true,
-	"poolside/laguna-s-2.1:free":                         true,
-	"poolside/laguna-xs-2.1:free":                        true,
 	"dots-studio/dots-3-note-preview:free":               true,
-	"liquid/lfm-2.5-2.6b:free":                           true,
 	"reflection/beam-free":                               true,
-	"xingchen-agi/xing4.0-29b-a4b:free":                  true,
-	"nvidia/nemotron-3.5-content-safety:free":            true,
+	"baidu/ernie-5.5-flash-preview:free":                 true,
+	"liquid/lfm-3-1.7b:free":                             true,
+	"particle-ai/particle-1:free":                        true,
+	"stealth/glyph-cluster":                              true,
 }
 
 type envelope struct {
@@ -1098,6 +1100,45 @@ func normalizeRequest(payload []byte) ([]byte, error) {
 	return ok(payloadResponse{Body: req.Body})
 }
 
+type curatedModelDef struct {
+	id, name, shortName, provider string
+	context, max                  int64
+	thinking                      bool
+}
+
+func curatedModels() []curatedModelDef {
+	return []curatedModelDef{
+		// OpenCode Free Tier (Zen)
+		{"big-pickle", "Big Pickle Free (OpenCode)", "Big Pickle Free", "opencode", 200000, 32000, true},
+		{"mimo-v2.6-flash-free", "MiMo v2.6 Flash Free (OpenCode)", "MiMo v2.6 Flash Free", "opencode", 200000, 32000, true},
+		{"deepseek-v4.1-flash-free", "DeepSeek V4.1 Flash Free (OpenCode)", "DeepSeek V4.1 Flash Free", "opencode", 200000, 32000, true},
+		{"glm-5.3-flash-free", "GLM 5.3 Flash Free (OpenCode)", "GLM 5.3 Flash Free", "opencode", 200000, 32000, true},
+		{"minimax-m3.1-flash-free", "MiniMax M3.1 Flash Free (OpenCode)", "MiniMax M3.1 Flash Free", "opencode", 1000000, 512000, true},
+		{"longcat-2.5-free", "LongCat 2.5 Free (OpenCode)", "LongCat 2.5 Free", "opencode", 1000000, 262144, true},
+		{"iceman-free", "Iceman Free (OpenCode)", "Iceman Free", "opencode", 262144, 131072, true},
+		{"inkling-2-small-free", "Inkling 2 Small Free (OpenCode)", "Inkling 2 Small Free", "opencode", 1048576, 131072, true},
+		{"beam-free", "Beam Free (OpenCode)", "Beam Free", "opencode", 1048576, 131072, true},
+		{"flint-40b-free", "Flint 40B Free (OpenCode)", "Flint 40B Free", "opencode", 262144, 65536, true},
+		{"nemotron-3.5-super-vl-free", "Nemotron 3.5 Super VL Free (OpenCode)", "Nemotron 3.5 Super VL Free", "opencode", 1048576, 131072, true},
+		{"nemotron-3.5-lightning-free", "Nemotron 3.5 Lightning Free (OpenCode)", "Nemotron 3.5 Lightning Free", "opencode", 262144, 262144, true},
+
+		// Kilo Free Tier (Active Curated Models)
+		{"kilo-auto/free", "Kilo Auto Free", "Kilo Auto Free", "kilo", 256000, 32768, false},
+		{"nvidia/nemotron-3-ultra-550b-a55b:free", "Nemotron 3 Ultra 550B Free (Kilo)", "Nemotron 3 Ultra 550B Free", "kilo", 1000000, 65536, true},
+		{"cohere/north-mini-code:free", "North Mini Code Free (Kilo)", "North Mini Code Free", "kilo", 256000, 64000, false},
+		{"openrouter/free", "OpenRouter Free Auto (Kilo)", "OpenRouter Free Auto", "kilo", 200000, 65536, false},
+		{"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "Nemotron 3 Nano Omni Free (Kilo)", "Nemotron 3 Nano Omni Free", "kilo", 256000, 65536, true},
+		{"nvidia/nemotron-3.5-lightning:free", "Nemotron 3.5 Lightning Free (Kilo)", "Nemotron 3.5 Lightning Free", "kilo", 1000000, 65536, false},
+		{"nvidia/nemotron-3.5-super-vl:free", "Nemotron 3.5 Super VL Free (Kilo)", "Nemotron 3.5 Super VL Free", "kilo", 1000000, 131072, false},
+		{"dots-studio/dots-3-note-preview:free", "Dots3-Note Preview Free (Kilo)", "Dots3-Note Preview Free", "kilo", 512000, 460800, false},
+		{"reflection/beam-free", "Reflection Beam Free (Kilo)", "Reflection Beam Free", "kilo", 1048576, 131072, false},
+		{"baidu/ernie-5.5-flash-preview:free", "ERNIE 5.5 Flash Preview Free (Kilo)", "ERNIE 5.5 Flash Preview Free", "kilo", 1024000, 921600, false},
+		{"liquid/lfm-3-1.7b:free", "LiquidAI LFM3 1.7B Free (Kilo)", "LiquidAI LFM3 1.7B Free", "kilo", 262144, 8192, false},
+		{"particle-ai/particle-1:free", "Particle 1 Free (Kilo)", "Particle 1 Free", "kilo", 1048576, 131072, false},
+		{"stealth/glyph-cluster", "Glyph Cluster (Kilo)", "Glyph Cluster", "kilo", 256000, 256000, false},
+	}
+}
+
 func listModels() []map[string]any {
 	type modelDef struct {
 		id, name     string
@@ -1105,34 +1146,10 @@ func listModels() []map[string]any {
 		thinking     bool
 	}
 
-	items := []modelDef{
-		// OpenCode Free Tier (9router v2 protocol)
-		{"flint-40b-free", "Flint 40B Free (OpenCode)", 262144, 65536, true},
-		{"nemotron-3-ultra-free", "Nemotron 3 Ultra Free (OpenCode)", 1000000, 128000, true},
-		{"glm-5.3-flash-free", "GLM 5.3 Flash Free (OpenCode)", 200000, 32768, true},
-		{"big-pickle", "Big Pickle Free (OpenCode)", 200000, 32000, true},
-		{"deepseek-v4.1-flash-free", "DeepSeek V4.1 Flash Free (OpenCode)", 1000000, 384000, true},
-		{"mimo-v2.6-flash-free", "MiMo v2.6 Flash Free (OpenCode)", 262144, 65536, true},
-		{"beam-free", "Beam Free (OpenCode)", 200000, 32768, true},
-		{"nemotron-3.5-super-vl-free", "Nemotron 3.5 Super VL Free (OpenCode)", 1000000, 65536, false},
-		{"cat-jam-free", "Cat Jam Free (OpenCode)", 1048576, 131072, true},
-		{"nemotron-3.5-lightning-free", "Nemotron 3.5 Lightning Free (OpenCode)", 1000000, 65536, false},
-
-		// Kilo Free Tier (Active Curated Models)
-		{"kilo-auto/free", "Kilo Auto Free", 256000, 32768, false},
-		{"nvidia/nemotron-3-ultra-550b-a55b:free", "Nemotron 3 Ultra 550B Free (Kilo)", 1000000, 65536, true},
-		{"cohere/north-mini-code:free", "North Mini Code Free (Kilo)", 256000, 64000, false},
-		{"openrouter/free", "OpenRouter Free Auto (Kilo)", 200000, 65536, false},
-		{"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "Nemotron 3 Nano Omni Free (Kilo)", 256000, 65536, true},
-		{"nvidia/nemotron-3.5-lightning:free", "Nemotron 3.5 Lightning Free (Kilo)", 1000000, 65536, false},
-		{"nvidia/nemotron-3.5-super-vl:free", "Nemotron 3.5 Super VL Free (Kilo)", 1000000, 131072, false},
-		{"poolside/laguna-s-2.1:free", "Poolside Laguna S 2.1 Free", 262144, 32768, false},
-		{"poolside/laguna-xs-2.1:free", "Laguna XS 2.1 Free (Kilo)", 262144, 32768, false},
-		{"dots-studio/dots-3-note-preview:free", "Dots3-Note Preview Free (Kilo)", 512000, 460800, false},
-		{"liquid/lfm-2.5-2.6b:free", "LiquidAI LFM2.5 2.6B Free (Kilo)", 65536, 8192, false},
-		{"reflection/beam-free", "Reflection Beam Free (Kilo)", 1048576, 131072, false},
-		{"xingchen-agi/xing4.0-29b-a4b:free", "Xingchen 4.0 29B Free (Kilo)", 262144, 235929, false},
-		{"nvidia/nemotron-3.5-content-safety:free", "Nemotron 3.5 Content Safety Free (Kilo)", 128000, 8192, false},
+	curated := curatedModels()
+	items := make([]modelDef, 0, len(curated))
+	for _, c := range curated {
+		items = append(items, modelDef{c.id, c.name, c.context, c.max, c.thinking})
 	}
 
 	// OmniRush models come from the account's live gateway catalog: the ids the
@@ -1464,20 +1481,116 @@ func callUpstream(model string, payload []byte, stream bool) (*upstreamResponse,
 	return resp, err
 }
 
-func getOpenCodeBaseURL() string {
-	if base, ok := settingsSidecarBase(); ok {
-		// Explicitly disabled, or a concrete base URL. Either way it wins over env.
+// resolveOpenCodeBaseURL decides where OpenCode traffic goes. It is pure so the
+// precedence can be tested without touching settings or the network.
+//
+// The in-process native transport is the default: it reproduces the CLI
+// ClientHello and header order, needs no second process, and was verified
+// end-to-end against the real gate. The Bun sidecar is now opt-in only —
+// because a reachable :8789 used to win silently, which sent traffic through
+// the slower path (and made a half-dead sidecar worse than none).
+//
+//  1. sidecarRaw set to a URL/host  -> that base URL
+//  2. sidecarRaw "-"                -> direct, native or not
+//  3. sidecarRaw "auto"             -> legacy probe of 127.0.0.1:8789
+//  4. envBase (OPENCODE_BASE_URL)   -> that base URL
+//  5. native enabled (default)      -> direct ("")
+//  6. native disabled               -> probe 127.0.0.1:8789, else direct
+func resolveOpenCodeBaseURL(sidecarRaw, envBase string, native bool, probe func() bool) string {
+	if raw, ok := settingsProxyValue(sidecarRaw); ok {
+		if raw == "" {
+			return ""
+		}
+		if strings.EqualFold(raw, "auto") {
+			if probe() {
+				return "http://127.0.0.1:8789"
+			}
+			return ""
+		}
+		raw = strings.TrimRight(raw, "/")
+		if !strings.Contains(raw, "://") {
+			raw = "http://" + raw
+		}
+		return raw
+	}
+	if base := strings.TrimRight(strings.TrimSpace(envBase), "/"); base != "" {
 		return base
 	}
-	if u := strings.TrimRight(os.Getenv("OPENCODE_BASE_URL"), "/"); u != "" {
-		return u
+	if native {
+		return ""
 	}
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:8789", 50*time.Millisecond)
-	if err == nil {
-		conn.Close()
+	if probe() {
 		return "http://127.0.0.1:8789"
 	}
 	return ""
+}
+
+func probeSidecarPort() bool {
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:8789", 50*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}
+
+func getOpenCodeBaseURL() string {
+	return resolveOpenCodeBaseURL(
+		loadPluginSettings().Identity.Sidecar,
+		os.Getenv("OPENCODE_BASE_URL"),
+		nativeTLSEnabled(),
+		probeSidecarPort,
+	)
+}
+
+// openCodeEgressMode labels the active path for the dashboard so an operator
+// can tell "native transport" from "sidecar bridge" at a glance.
+func openCodeEgressMode() string {
+	base := getOpenCodeBaseURL()
+	if base == "" {
+		return "native"
+	}
+	if strings.Contains(base, "://127.0.0.1:8789") || strings.Contains(base, "://localhost:8789") {
+		return "sidecar"
+	}
+	return "base-url"
+}
+
+// classifyOpenCode429 separates the two flavours of 429 the free tier emits.
+// The quota flavour is app-level (FreeUsageLimitError JSON plus a Retry-After
+// in the thousands of seconds and no CF mitigation header); the fingerprint
+// flavour comes from the Cloudflare gate and carries either cf-mitigated or a
+// non-JSON body. Returns the quota verdict and a human " (retry in …)" suffix.
+func classifyOpenCode429(hdr http.Header, body string) (bool, string) {
+	lower := strings.ToLower(body)
+	quota := strings.Contains(lower, "freeusagelimiterror") ||
+		strings.Contains(lower, "free usage limit") ||
+		strings.Contains(lower, "used today's free")
+	if mitigated := strings.TrimSpace(hdr.Get("CF-Mitigated")); mitigated != "" {
+		// Cloudflare served a challenge/block page, not an app error.
+		return false, ""
+	}
+	if !quota {
+		return false, ""
+	}
+	suffix := ""
+	if ra := strings.TrimSpace(hdr.Get("Retry-After")); ra != "" {
+		if secs, err := strconv.Atoi(ra); err == nil && secs > 0 {
+			suffix = fmt.Sprintf(" (retry in %s)", (time.Duration(secs) * time.Second).Round(time.Minute))
+		} else {
+			suffix = fmt.Sprintf(" (retry after %s)", ra)
+		}
+	}
+	return true, suffix
+}
+
+// truncateForLog keeps an upstream body short enough to ride inside an error.
+func truncateForLog(s string, limit int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= limit {
+		return s
+	}
+	return s[:limit] + "…"
 }
 
 func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse, error) {
@@ -1510,7 +1623,9 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 	}
 
 	identity := loadPluginSettings().Identity
-	if identity.MimicCLI && (strings.EqualFold(strings.TrimSpace(identity.UserAgent), "") || identity.UserAgent == "opencode/latest/2.0.32/cli") {
+	if identity.MimicCLI && (strings.EqualFold(strings.TrimSpace(identity.UserAgent), "") ||
+		identity.UserAgent == "opencode/latest/2.0.32/cli" ||
+		identity.UserAgent == "opencode/latest/2.1.4/cli") {
 		identity.UserAgent = opencodeClientUA
 	}
 	project := strings.TrimSpace(identity.Project)
@@ -1533,21 +1648,24 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 		logDebug("callOpenCode: sessionID=%s candidate=%s", sessionID, candidate)
 
 		b3, tp := generateTraceHeaders()
-		headers := http.Header{
-			"Content-Type":          []string{"application/json"},
-			"Authorization":         []string{"Bearer public"},
-			"User-Agent":            []string{identity.UserAgent},
-			"x-opencode-client":     []string{identity.Client},
-			"x-opencode-project":    []string{project},
-			"x-opencode-session-id": []string{sessionID},
-			"x-opencode-session":    []string{sessionID},
-			"x-session-affinity":    []string{sessionID},
-			"x-session-id":          []string{sessionID},
-			"X-Session-Id":          []string{sessionID},
-			"b3":                    []string{b3},
-			"traceparent":           []string{tp},
-			"Accept":                []string{"text/event-stream"},
-		}
+		headers := http.Header{}
+		headers.Set("Content-Type", "application/json")
+		headers.Set("Authorization", "Bearer public")
+		headers.Set("User-Agent", identity.UserAgent)
+		headers.Set("x-opencode-client", identity.Client)
+		headers.Set("x-opencode-project", project)
+		headers.Set("x-opencode-session-id", sessionID)
+		headers.Set("x-opencode-session", sessionID)
+		headers.Set("x-session-affinity", sessionID)
+		headers.Set("x-session-id", sessionID)
+		headers.Set("X-Session-Id", sessionID)
+		headers.Set("b3", b3)
+		headers.Set("traceparent", tp)
+		headers.Set("Connection", "keep-alive")
+		headers.Set("Accept", "*/*")
+		headers.Set("x-opencode-request", genRequestID())
+		headers.Set("Host", hostFromURL(targetURL))
+		headers.Set("Accept-Encoding", "gzip, deflate, br, zstd")
 
 		if !identity.MimicCLI {
 			// Debug mode: identify honestly and drop the CLI disguise headers.
@@ -1558,13 +1676,12 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 		}
 
 		isLocal := strings.HasPrefix(targetURL, "http://127.0.0.1") || strings.HasPrefix(targetURL, "http://localhost")
+		useRawCLI := !isLocal && nativeTLSEnabled()
 
-		// Inner loop: on a Cloudflare TLS-fingerprint 429 (direct egress, native
-		// TLS on) rotate the ClientHello preset and retry the same candidate,
-		// trying each preset at most once before falling through to the normal
-		// fallback handling.
+		// Preset rotation only applies to the legacy http.Transport uTLS path;
+		// openCodeRawDo already uses the cloned CLI ClientHello and header order.
 		maxTLSAttempts := 1
-		if nativeTLSEnabled() && baseURL == "" {
+		if !useRawCLI && nativeTLSEnabled() && baseURL == "" {
 			maxTLSAttempts = len(presetOrder)
 		}
 
@@ -1574,28 +1691,36 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 		for tlsAttempt := 0; tlsAttempt < maxTLSAttempts; tlsAttempt++ {
 			var client *http.Client
 			proxyKey = "direct"
+			var proxy *url.URL
 			if isLocal {
 				client = getHTTPClient(false)
 			} else {
-				proxy := getOpenCodeProxy()
+				proxy = getOpenCodeProxy()
 				if proxy != nil {
 					proxyKey = proxy.String()
 				}
 				client = getHTTPClient(true)
 			}
-			if nativeTLSEnabled() && !isLocal {
-				proxyKey += "|tls:" + currentPreset().name
-			}
 			logDebug("callOpenCode: egress=%s", proxyKey)
 
-			req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(transformedPayload))
-			if err != nil {
-				return nil, err
-			}
-			req.Header = headers
-
 			started := time.Now()
-			res, sendErr = client.Do(req)
+			if useRawCLI {
+				// Direct egress: hand-written request over the cloned CLI
+				// ClientHello (net/http would sort the headers and its TLS stack
+				// gets 429'd by the Cloudflare gate).
+				var ures *upstreamResponse
+				ures, sendErr = openCodeRawDo(context.Background(), targetURL, headers, transformedPayload, proxy, settingsHeaderTimeout())
+				if ures != nil {
+					res = &http.Response{StatusCode: ures.status, Header: ures.header, Body: ures.body}
+				}
+			} else {
+				req, rerr := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(transformedPayload))
+				if rerr != nil {
+					return nil, rerr
+				}
+				req.Header = headers
+				res, sendErr = client.Do(req)
+			}
 			if sendErr != nil {
 				if !isLocal {
 					invalidateTransport(proxyKey)
@@ -1608,7 +1733,7 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 
 			// Peek for the Cloudflare TLS 429 so we can rotate before consuming
 			// the body as a terminal error below.
-			if res.StatusCode == 429 && baseURL == "" && nativeTLSEnabled() && tlsAttempt < maxTLSAttempts-1 {
+			if !useRawCLI && res.StatusCode == 429 && baseURL == "" && nativeTLSEnabled() && tlsAttempt < maxTLSAttempts-1 {
 				_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 8192))
 				res.Body.Close()
 				newPreset := rotateTLSPreset()
@@ -1626,10 +1751,21 @@ func callOpenCode(model string, payload []byte, stream bool) (*upstreamResponse,
 			res.Body.Close()
 			bodyStr := strings.TrimSpace(string(b))
 			if res.StatusCode == 429 && baseURL == "" {
-				if nativeTLSEnabled() {
-					lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (Cloudflare refused every native-TLS ClientHello preset; set CPA_NATIVE_TLS_PRESET or fall back to the Bun sidecar on 127.0.0.1:8789)")
-				} else {
-					lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (Cloudflare blocks Go TLS; enable native TLS with CPA_NATIVE_TLS=1 or run the Bun sidecar on 127.0.0.1:8789)")
+				// Two very different 429s share one status code: the
+				// per-network free quota (FreeUsageLimitError, carries a long
+				// Retry-After) and a Cloudflare fingerprint refusal. Report
+				// which one it is instead of guessing, because the operator
+				// fixes them differently: wait, or change egress/ClientHello.
+				quota, retryAfter := classifyOpenCode429(res.Header, bodyStr)
+				switch {
+				case quota:
+					lastErr = fmt.Errorf("429 Too Many Requests: FreeUsageLimitError (egress=%s; free-tier quota for this network is spent%s — wait for the reset or use a different egress)", proxyKey, retryAfter)
+				case useRawCLI:
+					lastErr = fmt.Errorf("429 Too Many Requests (egress=%s; Cloudflare refused the cloned CLI ClientHello without a quota verdict: %s)", proxyKey, truncateForLog(bodyStr, 200))
+				case nativeTLSEnabled():
+					lastErr = fmt.Errorf("429 Too Many Requests (Cloudflare refused every native-TLS ClientHello preset; set CPA_NATIVE_TLS_PRESET or fall back to the Bun sidecar on 127.0.0.1:8789)")
+				default:
+					lastErr = fmt.Errorf("429 Too Many Requests (Cloudflare blocks Go TLS; enable native TLS with CPA_NATIVE_TLS=1 or run the Bun sidecar on 127.0.0.1:8789)")
 				}
 				return nil, lastErr
 			}

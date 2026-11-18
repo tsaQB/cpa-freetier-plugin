@@ -25,7 +25,7 @@ A high-performance, native dynamic C ABI v1 plugin (`.so` / `.dylib` / `.dll`) f
   * Automatic token refresh and rotation with mutex-locked grace window handling on HTTP `401`.
 * **OpenCode v2 Wire Protocol & Automatic Sidecar Routing:**
   * Implements the OpenCode v2 CLI contract (`opencode/latest/2.0.32/cli`), descending-timestamp session affinity (`ses_<12-hex><14-base62>`, 30-minute TTL with automatic expiry sweeping), and automatic `read`/`shell` fingerprint tool injection (renaming caller `read`/`shell` tools to `read_client`/`shell_client` on send and restoring them transparently in responses).
-  * **Local Sidecar Auto-Detection (`127.0.0.1:8789`):** Automatically probes `127.0.0.1:8789` (50ms TCP timeout) or uses `OPENCODE_BASE_URL` to route OpenCode requests through a local Bun/TLS sidecar (such as [`zen-proxy`](https://github.com/12errh/zen-proxy)) when available, bypassing upstream TLS/JA3 fingerprinting and 12-tool manifest checks (`429 FreeUsageLimitError` / `403 FreeTierError`) without double-proxying.
+  * **In-Process CLI Transport (default, no sidecar):** Cloned CLI ClientHello plus hand-written header order let the plugin call `https://opencode.ai` directly and pass the Cloudflare gate and 12-tool manifest checks (`429 FreeUsageLimitError` / `403 FreeTierError`) with zero extra processes. A local Bun/`zen-proxy` sidecar on `127.0.0.1:8789` is still supported, but only used when set explicitly or when `CPA_NATIVE_TLS=0`.
 * **Universal Agent & Client Compatibility (`request.normalize` + Executor Sanitizer):**
   * **Parameter Stripping:** Strips unsupported parameters (`thinking`, `enable_thinking`, `thinking_budget`, `thinking_config`, `search`, `web_search`, `return_citations`) sent by coding agents (**Hermes Agent**, **Cursor**, **Cline**, **Claude Code**, **Aider**, **Synaplan**). `reasoning_effort` is deliberately **preserved** because the upstream gateway accepts it and adjusts reasoning depth. Custom overrides via `CPA_STRIP_FIELDS` and `CPA_KEEP_FIELDS`.
   * **Message Role & Schema Normalization:** Converts legacy `prompt` strings into standard `messages`, populates empty `messages: []` arrays, normalizes empty/missing/unrecognized roles (`role: ""`) to `"user"`, maps `"developer"` to `"system"`, lowercases standard roles (`system`, `user`, `assistant`, `tool`, `function`), and repairs `nil` message content to `""`.
@@ -180,13 +180,15 @@ While **Kilo AI** models (`callKilo`) always connect directly through the host's
 
 ### 1. Endpoint Resolution (`getOpenCodeBaseURL`)
 On every OpenCode call, the plugin resolves the target endpoint in this exact order:
-1. **`OPENCODE_BASE_URL` environment variable:** If set, requests are sent to the configured base URL (appending standard OpenAI `/v1/chat/completions` or `/v1/responses`, or respecting custom paths like `/inference/openai/v1`).
-2. **Local Sidecar Auto-Detection (`127.0.0.1:8789`, required for OpenCode):** If `OPENCODE_BASE_URL` is unset, the plugin dials `127.0.0.1:8789` with a `50ms` TCP timeout. If a listener answers, requests are routed to `http://127.0.0.1:8789/v1/chat/completions` (or `/v1/responses` for responses models).
+1. **Explicit sidecar setting (`identity.sidecar`):** A URL/host always wins; `-` forces direct; `auto` restores the legacy `127.0.0.1:8789` probe.
+2. **`OPENCODE_BASE_URL` environment variable:** If set, requests are sent to the configured base URL (appending standard OpenAI `/v1/chat/completions` or `/v1/responses`, or respecting custom paths like `/inference/openai/v1`).
+3. **In-process native transport (default):** Direct `https://opencode.ai` over the cloned CLI ClientHello, no second process.
+4. **Sidecar probe only when native TLS is off:** With `CPA_NATIVE_TLS=0` the plugin dials `127.0.0.1:8789` (50 ms) and uses it if a listener answers, otherwise it stays direct.
 3. **Default Direct Upstream:** Otherwise, requests go directly to `https://opencode.ai/inference/openai/v1/chat/completions` (or `/inference/openai/v1/responses`).
 
-> **OpenCode Sidecar Architecture (v1.5.3):**
-> * **HTTP Layer (Native Go Harness):** The 8.2 KB agent preamble, official gate tools, W3C trace headers, SHA-1 project hashing, and candidate failovers are **compiled directly into the plugin binary** (`opencode_harness.go`).
-> * **TLS Layer (Bun Sidecar Bridge):** OpenCode's Cloudflare front-end strictly filters TLS ClientHello / JA3 fingerprints matching the official Bun-compiled CLI. Direct Go `crypto/tls` connections are rejected with `HTTP 429 FreeUsageLimitError`. Running [`zen-proxy`](https://github.com/12errh/zen-proxy) on `127.0.0.1:8789` provides the necessary BoringSSL TLS bridge to pass gate inspection. Kilo AI and OmniRush remain 100% native zero-dependency.
+> **OpenCode Transport Architecture (`opencode_harness.go` + `opencode_transport.go`):**
+> * **HTTP Layer:** The 8.2 KB agent preamble, official gate tools, W3C trace headers, SHA-1 project hashing, and candidate failovers are **compiled directly into the plugin binary**.
+> * **TLS Layer (native, no sidecar):** OpenCode's Cloudflare front-end filters TLS ClientHello/JA3 matching the official Bun-compiled CLI, and Go `crypto/tls` gets `429 FreeUsageLimitError`. The plugin therefore ships a byte-structural clone of the CLI hello (BoringSSL cipher order, `status_request` + SCT, ALPN `http/1.1`, no GREASE) and writes the request line plus header order by hand, bypassing `net/http`'s alphabetical sorting. Live E2E against the real gate answers `200` with real completions — **the Bun sidecar is now optional**, used only when explicitly configured or when `CPA_NATIVE_TLS=0`. Kilo AI and OmniRush remain 100% native zero-dependency.
 
 ### 2. Outbound Egress & Proxy Selection (`getOpenCodeProxy`)
 When calling the remote `https://opencode.ai` upstream (`isLocal == false`), Cloudflare WAF blocks datacenter ASNs with `403 Forbidden` (`FreeTierError: OpenCode's free tier can only be used from within OpenCode`). The plugin selects outbound egress in this exact order:
@@ -235,7 +237,7 @@ environment variables below. Delete it, or press **Reset** in the sheet, to fall
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
-| `OPENCODE_BASE_URL` | *(unset; auto-probes `127.0.0.1:8789`)* | Override the OpenCode base URL (routes to `/v1/chat/completions` or `/v1/responses` for sidecars like `zen-proxy:8789`, or preserves `/inference/openai/v1` for direct `opencode.ai`). If unset and `127.0.0.1:8789` is reachable within 50ms, uses `http://127.0.0.1:8789`; otherwise uses direct `https://opencode.ai`. |
+| `OPENCODE_BASE_URL` | *(unset — native direct)* | Override the OpenCode base URL (routes to `/v1/chat/completions` or `/v1/responses` for sidecars like `zen-proxy:8789`, or preserves `/inference/openai/v1` for direct `opencode.ai`). Unset means the in-process native transport is used; the sidecar probe only happens when `CPA_NATIVE_TLS=0`. |
 | `OPENCODE_PROXY` | *(unset)* | Explicit proxy URL for remote OpenCode calls (`http://`, `https://`, `socks5://`, `socks5h://`). Wins over the pools below. |
 | `OPENCODE_PROXY_POOL` | *(empty — direct)* | Comma-separated `host:port` or proxy URLs probed in order (60ms dial timeout, cached 30s). Set to `""` (empty) to disable probing. |
 | `OPENCODE_ALLOW_DATACENTER` | `0` | Enable (`1`, `true`, `yes`, `on`) to allow falling back to `OPENCODE_DATACENTER_PROXY_POOL`. Off by default because OpenCode rejects datacenter ASNs with `403 FreeTierError`. |

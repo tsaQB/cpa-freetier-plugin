@@ -5,3 +5,4 @@ build/
 *.h
 # local go build artifact (go build .)
 /cpa-freetier-plugin
+/cpa-freetier-plugin.exe

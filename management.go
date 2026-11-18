@@ -595,34 +595,10 @@ func handleStatusAPI() ([]byte, error) {
 		}
 	}
 
-	allList := []modelEntry{
-		// OpenCode
-		mk("flint-40b-free", "Flint 40B Free", "opencode", 262144, 65536, true),
-		mk("nemotron-3-ultra-free", "Nemotron 3 Ultra Free", "opencode", 1000000, 128000, true),
-		mk("glm-5.3-flash-free", "GLM 5.3 Flash Free", "opencode", 200000, 32768, true),
-		mk("big-pickle", "Big Pickle Free", "opencode", 200000, 32000, true),
-		mk("deepseek-v4.1-flash-free", "DeepSeek V4.1 Flash Free", "opencode", 1000000, 384000, true),
-		mk("mimo-v2.6-flash-free", "MiMo v2.6 Flash Free", "opencode", 262144, 65536, true),
-		mk("beam-free", "Beam Free", "opencode", 200000, 32768, true),
-		mk("nemotron-3.5-super-vl-free", "Nemotron 3.5 Super VL Free", "opencode", 1000000, 65536, false),
-		mk("cat-jam-free", "Cat Jam Free", "opencode", 1048576, 131072, true),
-		mk("nemotron-3.5-lightning-free", "Nemotron 3.5 Lightning Free", "opencode", 1000000, 65536, false),
-
-		// Kilo
-		mk("kilo-auto/free", "Kilo Auto Free", "kilo", 256000, 32768, false),
-		mk("nvidia/nemotron-3-ultra-550b-a55b:free", "Nemotron 3 Ultra 550B Free", "kilo", 1000000, 65536, true),
-		mk("cohere/north-mini-code:free", "North Mini Code Free", "kilo", 256000, 64000, false),
-		mk("openrouter/free", "OpenRouter Free Auto", "kilo", 200000, 65536, false),
-		mk("nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "Nemotron 3 Nano Omni Free", "kilo", 256000, 65536, true),
-		mk("nvidia/nemotron-3.5-lightning:free", "Nemotron 3.5 Lightning Free", "kilo", 1000000, 65536, false),
-		mk("nvidia/nemotron-3.5-super-vl:free", "Nemotron 3.5 Super VL Free", "kilo", 1000000, 131072, false),
-		mk("poolside/laguna-s-2.1:free", "Poolside Laguna S 2.1 Free", "kilo", 262144, 32768, false),
-		mk("poolside/laguna-xs-2.1:free", "Laguna XS 2.1 Free", "kilo", 262144, 32768, false),
-		mk("dots-studio/dots-3-note-preview:free", "Dots3-Note Preview Free", "kilo", 512000, 460800, false),
-		mk("liquid/lfm-2.5-2.6b:free", "LiquidAI LFM2.5 2.6B Free", "kilo", 65536, 8192, false),
-		mk("reflection/beam-free", "Reflection Beam Free", "kilo", 1048576, 131072, false),
-		mk("xingchen-agi/xing4.0-29b-a4b:free", "Xingchen 4.0 29B Free", "kilo", 262144, 235929, false),
-		mk("nvidia/nemotron-3.5-content-safety:free", "Nemotron 3.5 Content Safety Free", "kilo", 128000, 8192, false),
+	curated := curatedModels()
+	allList := make([]modelEntry, 0, len(curated))
+	for _, c := range curated {
+		allList = append(allList, mk(c.id, c.shortName, c.provider, c.context, c.max, c.thinking))
 	}
 
 	// OmniRush rows mirror the account's live gateway catalog.
@@ -644,6 +620,8 @@ func handleStatusAPI() ([]byte, error) {
 		},
 		"sidecar": map[string]any{
 			"zen_active": sidecarActive,
+			"native_tls": nativeTLSEnabled(),
+			"mode":       openCodeEgressMode(),
 			"zen_url":    getOpenCodeBaseURL(),
 			"zen_addr":   sidecarAddr,
 			"latency_ms": sidecarMS,
@@ -754,16 +732,19 @@ func setModelExclusion(model string, exclude bool) error {
 // Returns "down" when no proxy is configured (direct egress).
 func probeSidecar() (string, string, bool) {
 	baseURL := getOpenCodeBaseURL()
+	if baseURL == "" {
+		// Native in-process transport: no sidecar is in the path at all, so a
+		// silent :8789 must not be reported as an active bridge.
+		return "native", "off", false
+	}
 	addr := "127.0.0.1:8789"
-	if baseURL != "" {
-		if u, err := url.Parse(baseURL); err == nil && u.Host != "" {
-			addr = u.Host
-			if !strings.Contains(addr, ":") {
-				if u.Scheme == "https" {
-					addr += ":443"
-				} else {
-					addr += ":80"
-				}
+	if u, err := url.Parse(baseURL); err == nil && u.Host != "" {
+		addr = u.Host
+		if !strings.Contains(addr, ":") {
+			if u.Scheme == "https" {
+				addr += ":443"
+			} else {
+				addr += ":80"
 			}
 		}
 	}
